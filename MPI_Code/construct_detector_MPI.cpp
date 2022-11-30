@@ -126,16 +126,12 @@ void detector::read_MPI(ifstream & input, ofstream & output, int electronic_stat
 
 void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstream & log,  vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1) {
     int m, i;
+
     construct_dv_dirow_dicol_dmatrix_MPI(log, dmat0, dmat1, vmode0, vmode1);
+
     compute_important_state_index();
-    // -------------------------- Two different way of constructing off-diagonal term for detector  -----------------------------
-    // 1:  traditional way of constructing detector off-diagonal part of matrix
+    // -------------------------- constructing off-diagonal term for detector  -----------------------------
     compute_detector_offdiag_part_MPI(log,dmat0,dmat1,vmode0,vmode1);
-
-    //--------------------------------------------------------------------------------------------------
-    update_initial_state_energy();
-
-    output_state_density(dmat0,dmat1);
 
     broadcast_dmatnum_doffnum();
     broadcast_total_dmat();
@@ -146,10 +142,6 @@ void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstr
         }
 
     }
-
-    ofstream local_density_of_state_output(path + "local_density_of_state.txt");
-    compute_local_density_of_state(local_density_of_state_output,dmat0,dmat1);
-    local_density_of_state_output.close();
 
     xd = new vector <double> [electronic_state_num];
     yd = new vector<double> [electronic_state_num];
@@ -499,16 +491,13 @@ void detector::initialize_detector_state_MPI(ofstream & log) {
 
 }
 
-void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
-    // MPI version of construct bright state
+void detector::construct_initial_state_MPI(ifstream & input, ofstream & output){
+    // MPI version of construct initial state
     /*
      *  Initial detector state: detector state populated at beginning of simulation
-     *  Bright  detector state: detector state with bright mode set to 1 ,all other mode equal to initial detector state
      *  Initial_Detector_energy: Energy of detector at initial state.
      */
-    int my_id;
-    MPI_Comm_rank(MPI_COMM_WORLD,&my_id);
-    int m,i,j;
+    int m,i;
 
     initial_detector_state= new int * [electronic_state_num];
     initial_state_energy= new double [electronic_state_num];
@@ -545,22 +534,10 @@ void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
     }
 }
 
-void detector:: update_initial_state_energy(){
-    // we update energy of initial and bright state of detector. since in Van Vleck transformation, the energy level is shhifted.
-    int m,i;
-    for(m=0; m < electronic_state_num; m++){
-        initial_state_energy[m] = 0;
-        if(my_id == initial_state_pc_id[m]) {
-            initial_state_energy[m] = dmat[m][initial_state_index[m]];
-        }
-        MPI_Bcast(&initial_state_energy[m], 1, MPI_DOUBLE, initial_state_pc_id[m], MPI_COMM_WORLD);
-    }
-}
 void detector:: compute_important_state_index(){
     // compute bright state index and initial state index for two detector.
-    int m,i,j;
-    int index;
-    bool check_mark1, check_mark2;
+    int m,i;
+
     vector<int> special_state_vec ;
     int ** special_state;
     int * special_state_index;
@@ -568,16 +545,12 @@ void detector:: compute_important_state_index(){
     int position;
     bool exist;
     bool * exist_bool_for_pc = new bool [num_proc];
-    bright_state_index = new int [2];
     initial_state_index = new int [2];
-    bright_state_pc_id = new int [2];
     initial_state_pc_id = new int [2];
     // we initialize bright_state_index and initial_state_index.
     // We do this because sometimes we may not include bright state in our simulation, then this index need to be initialized.
     for(m=0; m < electronic_state_num; m++){
-        bright_state_index[m] = 0;
         initial_state_index[m]=0;
-        bright_state_pc_id[m] = 0;
         initial_state_pc_id[m] = 0;
     }
 
@@ -612,203 +585,3 @@ void detector:: compute_important_state_index(){
     delete [] exist_bool_for_pc;
 }
 
-
-void compute_detector_state_density(vector <int> & state_density, vector <double> & energy_distribution,
-                                    vector<double> & energy_range){
-    /*
-     input: state_density: D_{l}(E) we are going to calculate
-            energy_distribution: energy of different state in energy window
-            energy_range: record range of energy.
-    */
-    int i;
-    double min_energy= *min_element(energy_distribution.begin(),energy_distribution.end());
-    double max_energy= *max_element(energy_distribution.begin(),energy_distribution.end());
-    int block_number= 20;  // use to specify number of energy blocks we want to consider.
-    double energy_step = (max_energy- min_energy)/block_number;
-    int state_number = energy_distribution.size();
-    int index;
-    state_density.assign(block_number,0);
-    for(i=0;i<state_number;i++){
-        index = (energy_distribution[i] - min_energy) / energy_step;
-        if(index == block_number ) index= index -1;  // in case we meet max_energy element
-        state_density[index]++;
-    }
-    double energy=min_energy;
-    for(i=0;i<block_number+1;i++){
-        energy_range.push_back(energy);
-        energy= energy + energy_step;
-    }
-}
-
-void detector:: output_state_density(vector<double> & dmat0,  vector<double> & dmat1){
-    int i;
-    // compute_detector state_density
-    vector<int> state_density0;
-    vector <int> state_density1;
-    vector <double> energy_range0;
-    vector<double> energy_range1;
-    int block_number;
-
-    vector<double> dmat_energy_level0;
-    vector<double> dmat_energy_level1;
-    if(my_id == 0) {
-        ofstream state_density_output(path + "detector_state_density");
-        for (i = 0; i < total_dmat_size[0]; i++) {
-            dmat_energy_level0.push_back(dmat0[i]);  // dmat0 is diagonal part in all matrix.
-        }
-        for (i = 0; i < total_dmat_size[1]; i++) {
-            dmat_energy_level1.push_back(dmat1[i]);
-        }
-        compute_detector_state_density(state_density0, dmat_energy_level0, energy_range0);
-        compute_detector_state_density(state_density1, dmat_energy_level1, energy_range1);
-        block_number = state_density0.size();
-        state_density_output << "Detector 1 Range of energy block: " << endl;
-        for (i = 0; i <= block_number; i++) {
-            state_density_output << energy_range0[i] << " ";
-        }
-        state_density_output << endl;
-        state_density_output << "Detector 1 density of state " << endl;
-        for (i = 0; i < block_number; i++) {
-            state_density_output << state_density0[i] << " ";
-        }
-        state_density_output << endl;
-        state_density_output << " Detector 2 Range of energy block" << endl;
-        for (i = 0; i <= block_number; i++) {
-            state_density_output << energy_range1[i] << " ";
-        }
-        state_density_output << endl;
-        state_density_output << "Detector 2 density of state " << endl;
-        for (i = 0; i < block_number; i++) {
-            state_density_output << state_density1[i] << " ";
-        }
-        state_density_output << endl;
-        // output initial state's energy
-        for (i = 0; i < 2; i++) {
-            state_density_output << initial_state_energy[i] << "  " ;
-        }
-        state_density_output.close();
-    }
-}
-
-void detector:: compute_local_density_of_state(ofstream & local_state_density_output,vector<double> & dmat0 , vector<double> & dmat1  ){
-    // using eq.(2) in https://doi.org/10.1063/1.476070 to compute density of states: sum Lij
-    // compute distribution of local_state_density
-    // dmat0 contain all state's energy across process for detector0 . dmat1 contain all state's energy across process for detector 1
-    int i,j, k ;
-    double energy_difference;
-    double ** density_of_states = new double * [electronic_state_num];
-    double ** total_density_of_states = new double * [electronic_state_num];
-
-    int ** dmatsize_displacement = new int * [electronic_state_num];
-    for(i=0; i < electronic_state_num; i++){
-        dmatsize_displacement[i] = new int [num_proc];
-        dmatsize_displacement[i][0] = 0;
-        for(j=1;j<num_proc;j++){
-            dmatsize_displacement[i][j] = dmatsize_displacement[i][j-1] + dmatsize_each_process[i][j-1];
-        }
-    }
-    int * begin_index = new int [2];
-
-    int local_state_index = 0;
-
-    int global_state_index_dirow = 0;
-    int global_state_index_dicol = 0;
-
-    double * coupling_strength_sum = new double [electronic_state_num];
-    double * coupling_strength_sum_all_process = new double[electronic_state_num];
-    double * coupling_strength_average_all_process = new double[electronic_state_num];
-    vector<double> * dmat_ptr ;
-
-    for(i=0; i < electronic_state_num; i++){
-        begin_index[i] = total_dmat_size[i]/num_proc * my_id ;
-    }
-
-    for(i=0; i < electronic_state_num; i++){
-        density_of_states[i] = new double [dmatsize[i]];
-        for (j=0; j<dmatsize[i] ; j++ ){
-            density_of_states[i][j] = 0;
-        }
-    }
-
-    if(my_id == 0 ){
-        for(i=0; i < electronic_state_num; i++){
-            total_density_of_states[i] = new double [total_dmat_size[i]];
-        }
-    }
-
-    for(i=0; i < electronic_state_num; i++){
-
-        if(i==0){
-            dmat_ptr = & dmat0;
-        }
-        else{
-            dmat_ptr = & dmat1;
-        }
-
-        for( j = dmatsize[i]; j<dmatnum[i]; j++ ){
-            local_state_index = dirow[i][j] - begin_index[i];
-            global_state_index_dirow = dirow[i][j];
-            global_state_index_dicol = dicol[i][j];
-
-            energy_difference = abs ( (*dmat_ptr)[global_state_index_dirow] - (*dmat_ptr)[global_state_index_dicol] );
-            density_of_states[i][local_state_index] = density_of_states[i][local_state_index] + 1 / (1 + pow(energy_difference / dmat[i][j],2) );
-        }
-    }
-    // now we collect density_of_states in each process to total_density_of_states
-    for(i=0; i < electronic_state_num; i++){
-        MPI_Gatherv(&density_of_states[i][0],dmatsize[i],MPI_DOUBLE,&total_density_of_states[i][0],
-                    dmatsize_each_process[i],dmatsize_displacement[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
-    }
-
-    // compute coupling strength
-    for(i=0; i < electronic_state_num; i++){
-        coupling_strength_sum[i] = 0;
-        for(j= dmatsize[i] ; j<dmatnum[i] ; j++){
-            coupling_strength_sum [i] = coupling_strength_sum [i] + abs(dmat[i][j]);
-        }
-    }
-
-    MPI_Allreduce(&coupling_strength_sum[0], &coupling_strength_sum_all_process[0], electronic_state_num, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    for(i=0; i < electronic_state_num; i++){
-        coupling_strength_average_all_process[i] = coupling_strength_sum_all_process[i] / (total_dmat_num[i] - total_dmat_size[i]);
-    }
-
-    if(my_id == 0){
-        // output result
-        // format : number of states.  quantum number of state | 0 2 1 0 0 0 >. local density of state for that state.
-        for(i=0; i < electronic_state_num; i++){
-            local_state_density_output << coupling_strength_average_all_process[i] << endl;
-        }
-
-        for(i=0; i < electronic_state_num; i++){
-            local_state_density_output << total_dmat_size[i] << endl;
-            for(j=0;j<total_dmat_size[i];j++){
-                for(k=0;k<nmodes[i];k++){
-                    local_state_density_output << dv_all[i][j][k] << " ";
-                }
-                local_state_density_output << endl;
-                local_state_density_output << total_density_of_states[i][j] << endl;
-            }
-        }
-    }
-
-    delete [] begin_index;
-    for(i=0; i < electronic_state_num; i++){
-        delete [] density_of_states[i];
-    }
-
-    if(my_id == 0){
-        for(i=0; i < electronic_state_num; i++){
-            delete [] total_density_of_states[i];
-        }
-    }
-    delete [] density_of_states;
-    delete [] total_density_of_states;
-    for(i=0; i < electronic_state_num; i++){
-        delete [] dmatsize_displacement [i];
-    }
-    delete [] dmatsize_displacement;
-    delete [] coupling_strength_sum;
-    delete [] coupling_strength_sum_all_process;
-    delete [] coupling_strength_average_all_process;
-}

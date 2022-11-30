@@ -18,7 +18,7 @@ full_system::full_system(string path1) {
 
 	s.read_MPI(input, output, log);
 	d.read_MPI(input, output, s.electronic_state_num, path);
-    d.construct_bright_state_MPI(input,output);
+    d.construct_initial_state_MPI(input, output);
 
     compute_detector_matrix_size_MPI();
 
@@ -35,15 +35,13 @@ full_system::full_system(string path1) {
 // Doing Quantum Simulation with SUR algorithm, parallelized version.
 void full_system::Quantum_evolution() {
     // ---------------- prepare variable for prepare evolution and call prepare_evolution ------------------------------
-    bool onflag = false; // judge if the system-detector coupling is on
-    bool d_d_onflag = true;
     int i, j, k,m;
     int steps, psteps;
     int irow_index, icol_index;
     int d_d_coupling_num;
     // -----------------------------------------------------------------------------------
 
-	// Now we construct our wavefunction /phi for our detector and full_system. (For system it is already constructed in s.read())
+	// Now we construct our wavefunction /phi for our detector and full_system.
     d.initialize_detector_state_MPI(log); // initialize detector lower bright state
 
     Initial_state_MPI(); // construct initial state of whole system according to detector state and system state.

@@ -8,7 +8,7 @@ using namespace std;
 int Rmax; // maximum distance allowed in detector state space.
 
 
-int state_distance(const vector<int> & ndetector, int * state1, int moddim){
+int compute_state_space_distance(const vector<int> & ndetector, int * state1, int moddim){
     // compute distance between two state : ndetector and state1. Dimension of mod is moddim
     int i;
     int distance=0;
@@ -102,15 +102,14 @@ void full_system:: compute_detector_matrix_size_MPI( ){
         // ndetector0 and ndetector1 indicate current detector mode index we are calculating energy.
         vector<int> ndetector0(d.nmodes[0]);
         vector <int> ndetector1(d.nmodes[1]);
+
         // record size of total matrix
         int location;
         bool exist=false;
 
-        int lower_bright_state_distance;
+        int state_space_distance;
 
-        double middle_state_energy = (d.initial_state_energy[0] + d.initial_state_energy[1]) / 2;
-        double high_initial_state_energy = max(d.initial_state_energy[0] , d.initial_state_energy[1]);
-        double low_initial_state_energy = min(d.initial_state_energy[0], d.initial_state_energy[1]);
+        double initial_state_energy = min(d.initial_state_energy[0], d.initial_state_energy[1]);
 
         ndetector0[0] = -1; // this is for:  when we go into code: ndetector0[i]= ndetector0[i]+1, our first state is |000000>
         while (1) {
@@ -151,8 +150,8 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             }
 
             // criteria for energy window around bright_state and lower bright state for detector 0
-            if ((detector0_energy > low_initial_state_energy - d.detector_energy_window_size  and
-                 detector0_energy < high_initial_state_energy + d.detector_energy_window_size)
+            if ((detector0_energy > initial_state_energy - d.detector_energy_window_size and
+                 detector0_energy < initial_state_energy + d.detector_energy_window_size)
                     )
                 ;
             else {
@@ -160,12 +159,10 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             }
             //------------------------------------------------------------------------------------------------
             // criteria below make sure detector 1 can not be too far away from bright state and lower bright state.
-            lower_bright_state_distance = max(state_distance(ndetector0, d.initial_detector_state[0], d.nmodes[0]),
-                                              state_distance(ndetector0, d.initial_detector_state[1], d.nmodes[1]));
+            state_space_distance = compute_state_space_distance(ndetector0, d.initial_detector_state[0], d.nmodes[0]);
+
             // we do not use distance constraint for state whose energy is between two
-            if ( lower_bright_state_distance > Rmax
-                and ( detector0_energy > high_initial_state_energy or detector0_energy<low_initial_state_energy )
-                    ) {
+            if (state_space_distance > Rmax) {
                 goto label2;
             }
             //--------------------------------------insert this state in detector's state.-----------------------------------------------------------
@@ -220,9 +217,9 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             }
 
             // criteria for energy window around bright_state and lower bright state for detector 1
-            if ((detector1_energy > low_initial_state_energy -
+            if ((detector1_energy > initial_state_energy -
                                     d.detector_energy_window_size and
-                 detector1_energy < high_initial_state_energy +
+                 detector1_energy < initial_state_energy +
                                     d.detector_energy_window_size )
                     )
             {  // criteria here means we only consider detector state whose energy is within small energy window
@@ -233,11 +230,10 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             //------------------------------------------------------------------------------------------------
             // criteria below make sure detector 1 can not be too far away from bright state and lower bright state.
 
-            lower_bright_state_distance = max(state_distance(ndetector1, d.initial_detector_state[0], d.nmodes[0]),
-                                              state_distance(ndetector1, d.initial_detector_state[1], d.nmodes[1]));
-            if (lower_bright_state_distance > Rmax
-                and (detector1_energy< low_initial_state_energy or detector1_energy > high_initial_state_energy )
-                    ) {
+            state_space_distance = compute_state_space_distance(ndetector1, d.initial_detector_state[1],
+                                                                d.nmodes[1]);
+
+            if (state_space_distance > Rmax ) {
                 goto label3;
             }
             location = find_position_for_insert_binary(vmode1, ndetector1, exist);

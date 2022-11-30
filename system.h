@@ -35,9 +35,7 @@ private:
     int electronic_state_num;
     string path;
 
-    int * bright_state_index;
     int * initial_state_index;
-    int * bright_state_pc_id;
     int * initial_state_pc_id;
 public:
 	// for mode:  modtype: =0 dark or =1 bright state.  nmax: maximum state number for each mode. nmodes: total mode numbers.
@@ -112,7 +110,7 @@ public:
     // MPI version of SUR for one detector for each timestep.
     void update_dx_dy(int detector_index);
     void SUR_onestep_MPI( int detector_index, double cf);
-    void construct_bright_state_MPI(ifstream & input, ofstream & output);
+    void construct_initial_state_MPI(ifstream & input, ofstream & output);
     void initialize_detector_state_MPI(ofstream & log);
     void save_detector_Hamiltonian_MPI(string path, ofstream & log);
     void load_detector_Hamiltonian_MPI(string path, ofstream & log);
@@ -122,12 +120,8 @@ public:
     // used to broadcast dv_all , vmode0, vmode1 , dmat0, dmat1
     void Broadcast_dv_all();
 
-    void update_initial_state_energy();
     void compute_important_state_index();
 
-    void output_state_density(vector<double> & dmat0,  vector<double> & dmat1);
-
-    void compute_local_density_of_state(ofstream & output,vector<double> & dmat0 , vector<double> & dmat1 );
 };
 
 class full_system {
