@@ -1,0 +1,256 @@
+#include"system.h"
+#include"util.h"
+using namespace std;
+// advise: When you get lost in all these functions. Keep eye on fullsystem::fullsystem() and full_system::Quantum_evolution. Because
+//they are functions do most of works and call other functions here.
+
+
+//choice to turn on intra-detector coupling and scale it
+bool intra_detector_coupling;  // mark if to scale intra-detector coupling strength.
+double intra_detector_coupling_noise;
+// We set this value to explore the coarse-graining of our system  i.e. Compare system with different dof
+
+// choice to turn on inter_detector coupling and scale it.
+bool inter_detector_coupling;
+double inter_detector_coupling_noise;
+
+// choice to continue our simulation: read wavefunction in  save_wavefunction.txt
+bool Continue_Simulation;
+
+// choice to only simulate detector
+bool detector_only;
+
+double noise_strength;
+
+//choice to continue simulation of detector precoupling state: (Used to investigate decoherence of detector)
+bool Detector_Continue_Simulation;
+
+// energy window choice: We usually turn this on for large dof simulation. This will dramatically decrease computational cost for simulation
+bool energy_window ;
+double energy_window_size;  // size of energy window, we will only include whole system state whose energy difference with
+
+double initial_energy;  // energy of system + detector.
+double system_energy;  // energy of photon
+bool Random_bright_state;
+
+double detector_coupling_time = 20 ; // time for detector couple to each other. Beyond that time, detector_coupling strength will be 0.
+
+// initialization of parameters and do some pre-coupling set up
+full_system::full_system(string path1, string cvpt_path1) {
+
+	path = path1;
+    d.path = path;
+    d.cvpt_path = cvpt_path1;
+    // read hyper parameter and time step from input.txt
+    read_input_with_MPI();
+
+    //  store energy of photon in system_energy
+    system_energy=initial_energy;
+
+	s.read_MPI(input, output, log);
+	d.read_MPI(input, output, log, s.tlnum, s.tldim,path);
+    d.construct_bright_state_MPI(input,output);
+
+    compute_detector_matrix_size_MPI_new();
+
+    d.construct_dmatrix_MPI(input, output, log,dmat0,dmat1,vmode0,vmode1);
+
+    // construct full matrix Hamiltonian.
+    construct_fullmatrix_with_energy_window_MPI();
+
+	if(my_id ==0){
+        cout<<"Finish constructing Matrix"<<endl;
+        dimension_check(); // check if all matrix's dimension is right.
+	}
+}
+
+// Doing Quantum Simulation with SUR algorithm, parallelized version.
+void full_system::Quantum_evolution() {
+    // ---------------- prepare variable for prepare evolution and call prepare_evolution ------------------------------
+    bool onflag = false; // judge if the system-detector coupling is on
+    bool d_d_onflag = true;
+    int i, j, k,m;
+    int steps, psteps;
+    int irow_index, icol_index;
+    int d_d_coupling_num;
+    // -----------------------------------------------------------------------------------
+
+	// Now we construct our wavefunction /phi for our detector and full_system. (For system it is already constructed in s.read())
+    d.initialize_detector_state_MPI(log); // initialize detector lower bright state
+
+    Initial_state_MPI(); // construct initial state of whole system according to detector state and system state.
+
+    // prepare varibale for evolution.
+    prepare_evolution();
+    prepare_detenergy_computation_MPI();
+    shift_mat();
+
+	if (! Continue_Simulation) {
+		t = 0;  // if Continue_Simulation == true, the t == tmax of last simulation.
+	}
+	steps = tmax / delt + 1; // Total number of steps for simulation.0
+	psteps = tprint / delt;  // number of steps for printing out resuilt
+
+    // matrix for etot
+	double *hx, *hy;
+    hx = new double[matsize];  // we have to rewrite this part. hx should be allocated space outside the function.
+    hy = new double[matsize];
+	// matrix and variable for sysrho
+	double se, s0, s1, s2, trsr2;
+	complex<double> ** sr;
+	sr = new complex<double> *[int(pow(2, s.tldim))];  // sr: density matrix of system: (rho)
+	for (i = 0; i < pow(2, s.tldim); i++) {
+		sr[i] = new complex<double>[int(pow(2, s.tldim))];
+	}
+
+    double ** mode_quanta= new double * [s.tldim];
+	for (i = 0; i < s.tldim; i++) {
+		mode_quanta[i] = new double [d.nmodes[i]];
+	}
+    complex <double> ** dr = new complex<double> * [s.tldim];
+	complex <double> ** total_dr = new complex<double> * [s.tldim];
+	for(i=0;i<s.tldim;i++){
+	    dr[i] = new complex <double> [d.total_dmat_num[i]];
+	    total_dr[i] = new complex <double> [d.total_dmat_num[i]];
+	}
+
+	double * de = new double[s.tlnum]; // detector energy
+
+
+	// Here I'd like to create a new file to output detector reduced density matrix and average quanta in each mode.  You can comment this code if you don't want this one.
+	if(my_id==0) {
+        if (!Continue_Simulation) {
+            Detector_output.open(path + "Detector_output.txt"); // output the information for next simulation.
+            Detector_mode_quanta.open(path + "Detector_mode_quanta.txt");
+        } else {
+            Detector_output.open(path + "Detector_output.txt",
+                                 ios::app); // continue our simulation. we append simulation results in our output.txt already exists.
+            Detector_mode_quanta.open(path + "Detector_mode_quanta.txt", ios::app);
+        }
+
+        // end of code for open detector_output file.
+        // read out the memory and time cost at this time point
+        //estimate_memory_cost(resource_output);
+
+        log << "Start SUR Calculation" << endl;
+        log << "Total Time steps:" << steps << endl;
+        if (!Continue_Simulation) {
+            output<< "time    s1    s2      Trsr2    se      de[0]       de[1]"
+                     "    e    norm   s0 "<< endl;
+        }
+    }
+
+
+	clock_t start_time, end_time, duration;
+	start_time = clock();
+	int initial_step = t / delt;
+
+	//--------------------------   for gaussian shape coupling   ----------------------------
+//     coupling between detector will turn off after detector_coupling_time
+    double gauss_time_std = detector_coupling_time/6;
+    double max_strength_time=detector_coupling_time/2;
+    double update_d_d_coupling_time_step = gauss_time_std / 5;
+    int update_steps = update_d_d_coupling_time_step / delt;
+    d_d_coupling_num = d_d_index.size();
+    vector<double> original_d_d_coupling_strength;
+    for(i=0;i<d_d_coupling_num;i++){
+        original_d_d_coupling_strength.push_back(mat[d_d_index[i]]);
+    }
+
+	for (k = initial_step; k <= steps; k++) {
+		if (k == initial_step && Continue_Simulation);
+		else if (k % psteps == 0) {
+		    Normalize_wave_function();
+		    update_x_y();
+			if(my_id==0) {
+                output << "Steps: " << k << endl;
+            }
+            evaluate_system_output_MPI(hx, hy,se,s0,s1,s2,trsr2,de,mode_quanta,sr,dr,total_dr);
+        }
+
+		if (t > tstart && ! onflag) {
+			onflag = true;
+			// update coupling for system-detector coupling
+			for(m=0;m<s.tlnum;m++){
+			    for(i=0;i<sdnum[m];i++){
+			        mat[sdindex[m][i]] = d.modcoup[m][sdmode[m][i]] * cf;
+			    }
+			}
+		}
+
+//        // gaussian shape coupling
+//        if(Turn_on_Gaussian_coupling){
+//            if(t<detector_coupling_time and k%update_steps==0){
+//
+//                for(i=0;i<d_d_coupling_num;i++){
+//                    mat[d_d_index[i]] = 6 /sqrt(pi2)* original_d_d_coupling_strength[i]  * exp(-pow( (t-max_strength_time)/ gauss_time_std,2  )/2);
+//                }
+//            }
+//
+//            if(t>detector_coupling_time && d_d_onflag){
+//                log << "Turn off coupling between detector at time:  "<<detector_coupling_time <<endl;
+//                d_d_onflag = false;
+//                // updatge coupling between detector to be 0.
+//                for(i=0;i<d_d_coupling_num;i++){
+//                    mat[d_d_index[i]] = 0;
+//                }
+//            }
+//        }
+
+
+		t = t + delt;
+
+		// update tosend_xd for sending  to other process
+        update_y();
+        // SUR algorithm
+        for(i=0;i<matnum;i++){
+            irow_index = local_irow[i];
+            icol_index= local_icol[i];
+            x[irow_index] = x[irow_index] + mat[i] * y[icol_index];
+        }
+        update_x();
+        for(i=0;i<matnum;i++){
+            irow_index=local_irow[i];
+            icol_index= local_icol[i];
+            y[irow_index] = y[irow_index] - mat[i] * x[icol_index];
+        }
+	}
+
+	end_time = clock();
+	duration = end_time - start_time;
+	if(my_id == 0) {
+        log << "The total run time for parallel computing is " << (double(duration) /CLOCKS_PER_SEC)/60 << " minutes  for simulation time  " << tmax << endl;
+        cout << "The total run time for parallel computing is " << (double(duration)/CLOCKS_PER_SEC)/60 << " minutes  for simulation time  " << tmax << endl;
+    }
+
+//    save_wave_function_MPI();
+//	estimate_memory_cost(resource_output);
+    // -------------------------- free space
+	delete []  hx;
+    delete []  hy;
+
+    for(i=0;i<pow(2,s.tldim);i++){
+        delete [] sr[i];
+    }
+    delete [] sr;
+
+    for(i=0;i<s.tldim;i++) {
+        delete[] mode_quanta[i];
+    }
+    delete [] mode_quanta;
+// delete dr
+    for(i=0;i<s.tldim;i++){
+        delete [] dr[i];
+        delete [] total_dr[i];
+    }
+    delete [] dr;
+    delete [] total_dr;
+    delete [] de;
+    // ------------------------------------------------------------------------------------
+	input.close();
+	log.close();
+	output.close();
+	Detector_output.close();
+	resource_output.close();
+	replace_first_line();
+}
