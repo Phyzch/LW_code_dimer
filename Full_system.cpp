@@ -61,18 +61,6 @@ void full_system::Quantum_evolution() {
 	psteps = tprint / delt;  // number of steps for printing out resuilt
 
 
-	// Here I'd like to create a new file to output detector reduced density matrix and average quanta in each mode.  You can comment this code if you don't want this one.
-	if(my_id==0) {
-        Detector_output.open(path + "Detector_output.txt"); // output the information for next simulation.
-        Detector_mode_quanta.open(path + "Detector_mode_quanta.txt");
-
-        log << "Start SUR Calculation" << endl;
-        log << "Total Time steps:" << steps << endl;
-        output<< "time    s1    s2      Trsr2    se      de[0]       de[1]"
-                 "    e    norm   s0 "<< endl;
-    }
-
-
 	clock_t start_time, end_time, duration;
 	start_time = clock();
 	int initial_step = t / delt;
@@ -120,6 +108,5 @@ void full_system::Quantum_evolution() {
 	input.close();
 	log.close();
 	output.close();
-	Detector_output.close();
 	resource_output.close();
 }

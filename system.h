@@ -182,8 +182,6 @@ public:
 	ifstream input;
 	ofstream save;
 	ifstream load;
-    ofstream Detector_output;
-    ofstream Detector_mode_quanta;
 	// timestep variable
 	double delt, tmax, tprint;
 	double t; // check the time
@@ -240,11 +238,6 @@ public:
                                                                         int * sstate_all, int ** dstate_all,  int ** sdmode_all, int ** sdindex_all);
     void scatter_mat_irow_icol_sstate_dstate_sdmode_sdindex(double * mat_all, int * irow_all, int * icol_all ,
                                                        int * sstate_all, int ** dstate_all, int ** sdmode_all, int ** sdindex_all);
-    // save and load data
-    void save_Hamiltonian_MPI();
-    void load_Hamiltonian_MPI();
-    void save_wave_function_MPI();
-    void load_wave_function_MPI();
 
     void Normalize_wave_function();
 };
