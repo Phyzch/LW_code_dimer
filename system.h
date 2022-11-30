@@ -8,9 +8,6 @@
 #include"quotient_state.h"
 using namespace std;
 
-// define function here
-void estimate_memory_cost(ofstream & resource_output);  // output resource cost to file at give time step.
-
 // Information for MPI program
 extern int my_id;
 extern int num_proc;
@@ -91,9 +88,8 @@ public:
 
 	double V_intra, a_intra; // intra detector coupling strength.  a_intra = coupling strength for mfreq = 50.
     double detector_energy_window_size;
-	int ** bright_state, ** initial_detector_state; // record bright mode for two detectors when we try to see decoherence in our model.
-	double * initial_Detector_energy;
-	double * bright_state_energy;  // energy of detector's bright state.
+	int  ** initial_detector_state; // record bright mode for two detectors when we try to see decoherence in our model.
+	double * initial_state_energy;
 	detector();
 	~detector();
 	void allocate_space();
@@ -126,7 +122,7 @@ public:
     // used to broadcast dv_all , vmode0, vmode1 , dmat0, dmat1
     void Broadcast_dv_all();
 
-    void update_initial_and_bright_detector_energy();
+    void update_initial_state_energy();
     void compute_important_state_index();
 
     void output_state_density(vector<double> & dmat0,  vector<double> & dmat1);
@@ -216,7 +212,6 @@ public:
     // MPI version of code:
     void read_input_with_MPI();
     void compute_detector_matrix_size_MPI();
-    void compute_detector_matrix_size_MPI_new();
     void pre_coupling_evolution_MPI(int initial_state_choice);
     void construct_fullmatrix_with_energy_window_MPI();
     void compute_sstate_dstate_diagpart_dirow_dicol_MPI( );

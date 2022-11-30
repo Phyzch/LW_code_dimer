@@ -257,12 +257,8 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
         mode_quanta[m]= new double [d.nmodes[m]];
     }
     //--------------Prepare to output detector bright/initial state  -----------------
-    if(initial_state_choice==1){
-        special_state= d.bright_state;
-    }
-    else{
-        special_state=d.initial_detector_state;
-    }
+    special_state=d.initial_detector_state;
+
     special_state_pc_id = new int [s.electronic_state_num];  // record process id that record special state wave function.
     special_state_index = new int [s.electronic_state_num]; // index for special state in process: special_state_pc_id.
     special_state_x = new double [s.electronic_state_num];

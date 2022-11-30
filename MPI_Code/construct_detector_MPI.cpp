@@ -133,7 +133,7 @@ void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstr
     compute_detector_offdiag_part_MPI(log,dmat0,dmat1,vmode0,vmode1);
 
     //--------------------------------------------------------------------------------------------------
-    update_initial_and_bright_detector_energy();
+    update_initial_state_energy();
 
     output_state_density(dmat0,dmat1);
 
@@ -509,18 +509,12 @@ void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
     int my_id;
     MPI_Comm_rank(MPI_COMM_WORLD,&my_id);
     int m,i,j;
-    double norm;
-    double random_number;
-    double prob;
-    bright_state=new int * [electronic_state_num];
+
     initial_detector_state= new int * [electronic_state_num];
-    initial_Detector_energy= new double [electronic_state_num];
-    bright_state_energy= new double [electronic_state_num];
+    initial_state_energy= new double [electronic_state_num];
     for(m=0; m < electronic_state_num; m++){
-        bright_state[m]= new int [nmodes[m]];
         initial_detector_state[m]= new int [nmodes[m]];
-        initial_Detector_energy[m]=0;
-        bright_state_energy[m]=0;
+        initial_state_energy[m]=0;
     }
     if(my_id==0){
         for(m=0; m < electronic_state_num; m++) {
@@ -535,13 +529,8 @@ void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
 
     for(m=0; m < electronic_state_num; m++){
         // initialize our initial detector state.  set dark mode's quanta equal to bright_state.
-        bright_state[m][0]= initial_detector_state[m][0] + 1;
-        for(i=1;i<nmodes[m];i++){   // other dark mode
-            bright_state[m][i]=initial_detector_state[m][i];
-        }
         for(i=0;i<nmodes[m];i++){
-            initial_Detector_energy[m]= initial_Detector_energy[m] + initial_detector_state[m][i] * mfreq[m][i];
-            bright_state_energy[m] = bright_state_energy[m] + bright_state[m][i] * mfreq[m][i];
+            initial_state_energy[m]= initial_state_energy[m] + initial_detector_state[m][i] * mfreq[m][i];
         }
     }
 
@@ -556,20 +545,15 @@ void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
     }
 }
 
-void detector:: update_initial_and_bright_detector_energy(){
+void detector:: update_initial_state_energy(){
     // we update energy of initial and bright state of detector. since in Van Vleck transformation, the energy level is shhifted.
     int m,i;
     for(m=0; m < electronic_state_num; m++){
-        initial_Detector_energy[m] = 0;
-        bright_state_energy[m] = 0;
+        initial_state_energy[m] = 0;
         if(my_id == initial_state_pc_id[m]) {
-            initial_Detector_energy[m] = dmat[m][initial_state_index[m]];
+            initial_state_energy[m] = dmat[m][initial_state_index[m]];
         }
-        if(my_id == bright_state_pc_id[m] and bright_state_index[m]<dmatsize[m]){
-            bright_state_energy[m] = dmat[m][bright_state_index[m]];
-        }
-        MPI_Bcast(&initial_Detector_energy[m],1,MPI_DOUBLE,initial_state_pc_id[m],MPI_COMM_WORLD);
-        MPI_Bcast(&bright_state_energy[m],1,MPI_DOUBLE,bright_state_index[m],MPI_COMM_WORLD);
+        MPI_Bcast(&initial_state_energy[m], 1, MPI_DOUBLE, initial_state_pc_id[m], MPI_COMM_WORLD);
     }
 }
 void detector:: compute_important_state_index(){
@@ -596,42 +580,35 @@ void detector:: compute_important_state_index(){
         bright_state_pc_id[m] = 0;
         initial_state_pc_id[m] = 0;
     }
-    for(index =0 ; index <1; index ++) {    // when you want to consider bright state, set index<=1
-        // loop for bright state and initial state
-        if(index == 0) {
-            special_state = initial_detector_state;
-            special_state_index = initial_state_index;
-            special_state_pc_id = initial_state_pc_id;
+
+    // loop for bright state and initial state
+    special_state = initial_detector_state;
+    special_state_index = initial_state_index;
+    special_state_pc_id = initial_state_pc_id;
+    // loop for two detector.
+    for (m = 0; m < electronic_state_num; m++) {
+        special_state_vec.clear();
+        for (i = 0; i < nmodes[m]; i++) {
+            special_state_vec.push_back(special_state[m][i]);
         }
-        else{
-            special_state = bright_state;
-            special_state_index = bright_state_index;
-            special_state_pc_id = bright_state_pc_id;
+        position=find_position_for_insert_binary(dv[m],special_state_vec,exist);
+        MPI_Allgather(&exist,1,MPI_C_BOOL,&exist_bool_for_pc[0],1,MPI_C_BOOL,MPI_COMM_WORLD);
+        special_state_pc_id [m] = -1;
+        for(i=0;i<num_proc;i++){
+            if(exist_bool_for_pc[i]){
+                special_state_pc_id[m] = i;
+            }
         }
-        // loop for two detector.
-        for (m = 0; m < electronic_state_num; m++) {
-            special_state_vec.clear();
-            for (i = 0; i < nmodes[m]; i++) {
-                special_state_vec.push_back(special_state[m][i]);
+        if(special_state_pc_id[m] == -1){
+            if(my_id==0){
+                cout<<" Can not find initial state or brigth state in all vmode. Must have bug here."<<endl;
+                MPI_Abort(MPI_COMM_WORLD,-7);
             }
-            position=find_position_for_insert_binary(dv[m],special_state_vec,exist);
-            MPI_Allgather(&exist,1,MPI_C_BOOL,&exist_bool_for_pc[0],1,MPI_C_BOOL,MPI_COMM_WORLD);
-            special_state_pc_id [m] = -1;
-            for(i=0;i<num_proc;i++){
-                if(exist_bool_for_pc[i]){
-                    special_state_pc_id[m] = i;
-                }
-            }
-            if(special_state_pc_id[m] == -1){
-                if(my_id==0){
-                    cout<<" Can not find initial state or brigth state in all vmode. Must have bug here."<<endl;
-                    MPI_Abort(MPI_COMM_WORLD,-7);
-                }
-            }
-            MPI_Bcast(&position,1, MPI_INT,special_state_pc_id[m],MPI_COMM_WORLD);
-            special_state_index [m] = position;
         }
+        MPI_Bcast(&position,1, MPI_INT,special_state_pc_id[m],MPI_COMM_WORLD);
+        special_state_index [m] = position;
     }
+
     delete [] exist_bool_for_pc;
 }
 
@@ -707,7 +684,7 @@ void detector:: output_state_density(vector<double> & dmat0,  vector<double> & d
         state_density_output << endl;
         // output initial state's energy
         for (i = 0; i < 2; i++) {
-            state_density_output << initial_Detector_energy[i] << "  " << bright_state_energy[i] << " ";
+            state_density_output << initial_state_energy[i] << "  " ;
         }
         state_density_output.close();
     }

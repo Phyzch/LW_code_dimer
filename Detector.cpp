@@ -26,10 +26,8 @@ detector::~detector(){
     delete [] xd;
     delete [] yd;
     delete [] proptime;
-    delete [] bright_state;
     delete [] initial_detector_state;
-    delete [] initial_Detector_energy;
-    delete [] bright_state_energy;
+    delete [] initial_state_energy;
 
     for(i=0; i < electronic_state_num; i++){
         delete [] dmatsize_each_process[i];

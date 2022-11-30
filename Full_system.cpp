@@ -20,7 +20,7 @@ full_system::full_system(string path1) {
 	d.read_MPI(input, output, s.electronic_state_num, path);
     d.construct_bright_state_MPI(input,output);
 
-    compute_detector_matrix_size_MPI_new();
+    compute_detector_matrix_size_MPI();
 
     d.construct_dmatrix_MPI(input, output, log,dmat0,dmat1,vmode0,vmode1);
 
@@ -89,10 +89,6 @@ void full_system::Quantum_evolution() {
         Detector_output.open(path + "Detector_output.txt"); // output the information for next simulation.
         Detector_mode_quanta.open(path + "Detector_mode_quanta.txt");
 
-        // end of code for open detector_output file.
-        // read out the memory and time cost at this time point
-        //estimate_memory_cost(resource_output);
-
         log << "Start SUR Calculation" << endl;
         log << "Total Time steps:" << steps << endl;
         output<< "time    s1    s2      Trsr2    se      de[0]       de[1]"
@@ -151,8 +147,6 @@ void full_system::Quantum_evolution() {
         cout << "The total run time for parallel computing is " << (double(duration)/CLOCKS_PER_SEC)/60 << " minutes  for simulation time  " << tmax << endl;
     }
 
-//    save_wave_function_MPI();
-//	estimate_memory_cost(resource_output);
     // -------------------------- free space
 	delete []  hx;
     delete []  hy;
