@@ -28,13 +28,7 @@ using namespace std;
 extern double energy_window_size;
 extern int Rmax;
 
-extern bool Turn_on_Vanvleck;
-extern int ndegre;
-extern int ndegrx2;
-extern double es_criteria;
-
 extern double detector_coupling_time;
-extern bool Turn_on_Gaussian_coupling;
 
 // define function here
 float ran2(long& idum);

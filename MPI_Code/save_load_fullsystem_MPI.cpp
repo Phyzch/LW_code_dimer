@@ -126,14 +126,14 @@ void full_system::save_Hamiltonian_MPI(){
     gather_mat_irow_icol_sstate_dstate_sdmode_sdindex(mat_all,irow_all,icol_all,sstate_all,dstate_all,sdmode_all,sdindex_all);
     if(my_id == 0){
         save<< total_matsize << " "<<total_offnum <<" " << total_matnum <<"  ";
-        for(m=0;m<s.tldim;m++){
+        for(m=0;m<s.electronic_state_num; m++){
             save << total_sd_num[m] <<"  ";
         }
         // record matrix size and number for each process
         for(i=0;i<num_proc;i++){
             save << matsize_each_process[i] << "  "<< matsize_offset_each_process[i] << "  "<< mat_offnum_each_process[i]<<"  "<<matnum_each_process[i] <<"  " << matnum_offset_each_process[i]<<"  ";
         }
-        for(m=0;m<s.tldim;m++){
+        for(m=0;m<s.electronic_state_num; m++){
             for(i=0;i<num_proc;i++){
                 save << sdnum_each_process[m][i] <<"  ";
                 save << sdnum_displacement_each_process[m][i] <<" ";
@@ -192,11 +192,11 @@ void full_system::load_Hamiltonian_MPI() {
     int ** sdmode_all;
 
     // allocate memory for pointer sdnum, sdindex, sdmode
-    sdnum = new int[s.tldim];
-    total_sd_num = new int [s.tldim];
-    sdnum_each_process = new int * [s.tldim];
-    sdnum_displacement_each_process = new int * [s.tldim];
-    for(i=0;i<s.tldim;i++){
+    sdnum = new int[s.electronic_state_num];
+    total_sd_num = new int [s.electronic_state_num];
+    sdnum_each_process = new int * [s.electronic_state_num];
+    sdnum_displacement_each_process = new int * [s.electronic_state_num];
+    for(i=0;i<s.electronic_state_num; i++){
         sdnum_each_process [i] = new int [num_proc];
         sdnum_displacement_each_process [i] = new int [num_proc];
     }
@@ -219,7 +219,7 @@ void full_system::load_Hamiltonian_MPI() {
 
     if(my_id == 0){
         load >> total_matsize >> total_offnum>> total_matnum;
-        for(m=0;m<s.tldim;m++){
+        for(m=0;m<s.electronic_state_num; m++){
             load >> total_sd_num[m];
         }
         for(i=0;i<num_proc;i++){

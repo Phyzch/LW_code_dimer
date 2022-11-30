@@ -17,7 +17,6 @@ extern int num_proc;
 
 class system {
 public:
-	const static int tldim = 2;
 	friend class full_system;
 	friend class detector;
 	double *x_electronic, *y_electronic, *electronic_state_energy, *tlmat; //
@@ -26,6 +25,7 @@ public:
     void initialize_energy_level(ifstream & input, ofstream & output);
     void initialize_wavefunction(ifstream & input, ofstream & output);
     void initialize_state_energy();
+    void allocate_space();
 	system();
 	~system();
 };
@@ -35,8 +35,7 @@ private:
     const int fillfrac = 10;
     const static int detdim =80;  // maximum n*n dimension of our detector matrix
     int dmatdim; // detector matrix size
-    int stlnum;
-    int stldim;
+    int electronic_state_num;
     string path;
 
     int * bright_state_index;
@@ -97,9 +96,9 @@ public:
 	double * bright_state_energy;  // energy of detector's bright state.
 	detector();
 	~detector();
-	void allocate_space(int tlnum);
+	void allocate_space();
     void allocate_space_single_detector(int detector_index);
-	void read_MPI(ifstream & input, ofstream & output, ofstream & log, int stlnum, int stldim, string path);
+	void read_MPI(ifstream & input, ofstream & output, int electronic_state_num1, string path);
 
 
     // MPI version of function.
@@ -126,8 +125,6 @@ public:
 
     // used to broadcast dv_all , vmode0, vmode1 , dmat0, dmat1
     void Broadcast_dv_all();
-    // for Van Vleck transformation
-    void output_detector_Hamiltonian(vector<double> & state_energy, vector<vector<int>> & dv);
 
     void update_initial_and_bright_detector_energy();
     void compute_important_state_index();

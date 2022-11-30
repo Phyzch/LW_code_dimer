@@ -100,13 +100,13 @@ void detector::prepare_evolution(){
     // Index for vector to send and receive.
     // remoteVecCount: total number to receive. remoteVecPtr: displacement in remoteVecIndex for each process. remoteVecIndex: index in other process to receive.
     // tosendVecCount: total number to send to other process. tosendVecPtr: displacement in tosendVecIndex in each process.  tosendVecIndex: Index of element in itself to send. (it's global ,need to be converted to local index)
-    remoteVecCount= new int * [stlnum];
-    remoteVecPtr= new int * [stlnum];
-    remoteVecIndex= new int * [stlnum];
-    to_recv_buffer_len = new int  [stlnum];
+    remoteVecCount= new int * [electronic_state_num];
+    remoteVecPtr= new int * [electronic_state_num];
+    remoteVecIndex= new int * [electronic_state_num];
+    to_recv_buffer_len = new int  [electronic_state_num];
 
     //------------------Allocate space for vector to receive ---------------------
-    for (m=0;m<stlnum;m++){
+    for (m=0; m < electronic_state_num; m++){
         remoteVecCount[m] = new int [num_proc];
         remoteVecPtr[m] = new int [num_proc];
         remoteVecIndex[m] = new int [dmatnum[m]];
@@ -114,11 +114,11 @@ void detector::prepare_evolution(){
             remoteVecCount[m][i] = 0;
         }
     }
-    tosendVecCount= new int *[stlnum];
-    tosendVecPtr =  new int * [stlnum];
-    tosendVecIndex = new int * [stlnum];
-    to_send_buffer_len= new int [stlnum];
-    for(m=0;m<stlnum;m++){
+    tosendVecCount= new int *[electronic_state_num];
+    tosendVecPtr =  new int * [electronic_state_num];
+    tosendVecIndex = new int * [electronic_state_num];
+    to_send_buffer_len= new int [electronic_state_num];
+    for(m=0; m < electronic_state_num; m++){
         tosendVecCount[m] = new int [num_proc];
         tosendVecPtr[m] = new int [num_proc];
     }
@@ -129,11 +129,11 @@ void detector::prepare_evolution(){
     local_dirow= new vector<int> [2];
     local_dicol = new vector<int> [2]; // column index for computation in local matrix.
     // buffer to send and receive buffer to/from other process.
-    recv_xd= new double * [stlnum];
-    recv_yd= new double * [stlnum];
-    send_xd= new double * [stlnum];
-    send_yd = new double *[stlnum];
-    for(m=0;m<stlnum;m++){
+    recv_xd= new double * [electronic_state_num];
+    recv_yd= new double * [electronic_state_num];
+    send_xd= new double * [electronic_state_num];
+    send_yd = new double *[electronic_state_num];
+    for(m=0; m < electronic_state_num; m++){
         vsize= total_dmat_size[m]/num_proc;
         to_recv_buffer_len[m] = construct_receive_buffer_index(remoteVecCount[m],remoteVecPtr[m],
                 remoteVecIndex[m],m);  // construct buffer to receive.

@@ -25,6 +25,8 @@ void system::read_MPI(ifstream &input, ofstream &output, ofstream &log) {
     MPI_Bcast(&electronic_state_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
     tlmatsize = electronic_state_num;  // system wave function array size.
 
+    allocate_space();
+
     initialize_energy_level(input,output);
 
     initialize_wavefunction(input,output);
@@ -33,6 +35,15 @@ void system::read_MPI(ifstream &input, ofstream &output, ofstream &log) {
 
 };
 
+void system::allocate_space(){
+    // x_electronic: real part of system wave function
+    // y_electronic: image part of system wave function
+    // electronic_state_energy: energy level of system's eigen state, also diagonal part of our Hamiltonian matrix
+    x_electronic = new double[electronic_state_num];
+    y_electronic = new double[electronic_state_num];
+    electronic_state_energy = new double[electronic_state_num];
+    tlmat = new double[electronic_state_num];
+}
 
 void system::initialize_energy_level(ifstream & input, ofstream & output){
     // initialize energy of state

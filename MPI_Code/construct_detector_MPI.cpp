@@ -8,37 +8,37 @@ using namespace std;
 void Broadcast_dmat_vmode(int stlnum, vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
 
 // initialize parameters for detector and allocate space there.
-void detector::allocate_space(int tlnum) {
+void detector::allocate_space() {
     int i, j;
     dmatdim = detdim*detdim / fillfrac;
 
-    nmodes = new int[tlnum];  //  number of modes in each detector
+    nmodes = new int[electronic_state_num];  //  number of modes in each detector
 
-    proptime = new double[tlnum];  //  pre-coupling propagation time
+    proptime = new double[electronic_state_num];  //  pre-coupling propagation time
 
-    nmax = new int *[tlnum];  // maximum number of quanta in eqch mode.
+    nmax = new int *[electronic_state_num];  // maximum number of quanta in eqch mode.
 
-    dmatsize = new int[tlnum];   // size of detector matrix
+    dmatsize = new int[electronic_state_num];   // size of detector matrix
 
-    mfreq = new double *[tlnum];  // mfreq: frequency of each mode here.
+    mfreq = new double *[electronic_state_num];  // mfreq: frequency of each mode here.
 
-    aij = new double * [tlnum];
+    aij = new double * [electronic_state_num];
 
-    dmat = new vector <double> [tlnum];
+    dmat = new vector <double> [electronic_state_num];
 
-    dirow = new vector<int> [tlnum];
+    dirow = new vector<int> [electronic_state_num];
 
-    dicol = new vector<int> [tlnum];
+    dicol = new vector<int> [electronic_state_num];
 
-    dv = new vector<vector<int>> [tlnum];
+    dv = new vector<vector<int>> [electronic_state_num];
 
     // matrix element number for detector matrix
-    dmatnum = new int[tlnum];
+    dmatnum = new int[electronic_state_num];
     // off diagonal matrix element number for detector matrix
-    doffnum = new int[tlnum];
+    doffnum = new int[electronic_state_num];
 
-    xd_all = new double * [tlnum];
-    yd_all = new double * [tlnum];
+    xd_all = new double * [electronic_state_num];
+    yd_all = new double * [electronic_state_num];
 
     // tell detector total matrix size..
     total_dmat_size.reserve(2);
@@ -48,7 +48,7 @@ void detector::allocate_space(int tlnum) {
     doffnum_each_process= new int * [2];
     dmatnum_each_process= new int * [2];;  // record detector matrix element number in each process.
     dmat_offset_each_process= new int * [2];; // record local first detector matrix's index in global matrix.
-    for(i=0;i<tlnum;i++){
+    for(i=0;i<electronic_state_num;i++){
         dmatsize_each_process[i]= new int [num_proc];
         doffnum_each_process[i]= new int [num_proc];
         dmatnum_each_process[i] = new int [num_proc];
@@ -65,24 +65,19 @@ void detector:: allocate_space_single_detector(int detector_index){
 }
 
 // read parameters for detector matrix construction.
-void detector::read_MPI(ifstream & input, ofstream & output, ofstream & log, int tlnum, int tldim, string path) {
+void detector::read_MPI(ifstream & input, ofstream & output, int electronic_state_num1, string path) {
     int i, j;
-    int my_id;
     double geometric_mean_frequency;
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
+    electronic_state_num = electronic_state_num1;
 
-    stlnum=tlnum;
-    stldim=tldim;
-    allocate_space(tlnum);
+    allocate_space();
     if (my_id==0){
-        // matflag: mark used to see if we shift energy window.
         // maxdis: maximum allowed distance.
         // cutoff: cutoff strength for intra-detector coupling strength.  cutoff2: cutoff strength for inter-detector coupling.
-        // kelvin: temperature used to initialize detector state.
         input >>  maxdis >> cutoff;
         output << "Detector  " << maxdis << " " << cutoff <<  endl;
-        for (i = 0; i < tlnum; i++) {
+        for (i = 0; i < electronic_state_num; i++) {
             input >> nmodes[i] >> proptime[i];
             allocate_space_single_detector(i);
             for (j = 0; j < nmodes[i]; j++) {
@@ -96,7 +91,7 @@ void detector::read_MPI(ifstream & input, ofstream & output, ofstream & log, int
             geometric_mean_frequency = geometric_mean_frequency * pow(double(mfreq[i][j]) , 1 / double(nmodes[i]));
         }
 
-        for(i=0;i<tlnum;i++){
+        for(i=0; i < electronic_state_num; i++){
             output << nmodes[i] << " " << proptime[i] << endl;
             for(j=0;j<nmodes[i];j++){
                 aij[i][j] = a_intra * pow(double(mfreq[i][j]) / geometric_mean_frequency ,0.5);
@@ -106,10 +101,11 @@ void detector::read_MPI(ifstream & input, ofstream & output, ofstream & log, int
         }
     }
 
-    MPI_Bcast(&nmodes[0],tlnum,MPI_INT,0,MPI_COMM_WORLD);
-    MPI_Bcast(&proptime[0],tlnum,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&nmodes[0], electronic_state_num, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&proptime[0], electronic_state_num, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
     if(my_id!=0){
-        for(i=0;i<stlnum;i++){
+        for(i=0; i < electronic_state_num; i++){
             allocate_space_single_detector(i);
         }
     }
@@ -121,13 +117,11 @@ void detector::read_MPI(ifstream & input, ofstream & output, ofstream & log, int
     MPI_Bcast(&maxdis,1,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Bcast(&cutoff,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
-    for(i=0;i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
         MPI_Bcast(&mfreq[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
         MPI_Bcast(&nmax[i][0],nmodes[i],MPI_INT,0,MPI_COMM_WORLD);
         MPI_Bcast(&aij[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
-    ndegre = nmodes[0];
-    ndegrx2 = ndegre * 2;
 };
 
 void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstream & log,  vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1) {
@@ -147,7 +141,7 @@ void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstr
     broadcast_total_dmat();
 
     if(my_id==0){
-        for(m=0;m<stlnum;m++){
+        for(m=0; m < electronic_state_num; m++){
             output << "Matrix for detector " << m << " : " << total_dmat_size[m] << "  " << total_dmat_off_num[m] << endl;
         }
 
@@ -157,9 +151,9 @@ void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstr
     compute_local_density_of_state(local_density_of_state_output,dmat0,dmat1);
     local_density_of_state_output.close();
 
-    xd = new vector <double> [stlnum];
-    yd = new vector<double> [stlnum];
-    for (i = 0; i < stlnum; i++) {
+    xd = new vector <double> [electronic_state_num];
+    yd = new vector<double> [electronic_state_num];
+    for (i = 0; i < electronic_state_num; i++) {
         xd[i].reserve(dmatsize[i]);
         yd[i].reserve(dmatsize[i]);
     }
@@ -171,7 +165,7 @@ void detector:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log,vector<doubl
     int displacement;
     if(my_id==0){
         total_dmat_size[0]= dmat0.size();
-        if(stlnum==2){
+        if(electronic_state_num == 2){
             total_dmat_size[1] = dmat1.size();
         }
         else{
@@ -179,7 +173,7 @@ void detector:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log,vector<doubl
         }
     }
     MPI_Bcast(&total_dmat_size[0],2,MPI_INT,0,MPI_COMM_WORLD);
-    for(i=0;i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
         xd_all[i] = new double [total_dmat_size[i]];
         yd_all[i] = new double [total_dmat_size[i]];
     }
@@ -194,7 +188,7 @@ void detector:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log,vector<doubl
     vector_size = new int *[2];
     displacement_list = new int *[2];
 
-    Broadcast_dmat_vmode(stlnum, dmat0,dmat1,vmode0,vmode1); // broadcast dmat0, dmat1, vmode0, vmode1 to all process to compute off-diagonal matrix.
+    Broadcast_dmat_vmode(electronic_state_num, dmat0, dmat1, vmode0, vmode1); // broadcast dmat0, dmat1, vmode0, vmode1 to all process to compute off-diagonal matrix.
     dv_all[0] = vmode0;
     dv_all[1] = vmode1;
 
@@ -202,7 +196,7 @@ void detector:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log,vector<doubl
         dmat_all[0] = dmat0;
         dmat_all[1] = dmat1;
         // prepare dirow, dicol for broadcasting.
-        for (m = 0; m < stlnum; m++) {
+        for (m = 0; m < electronic_state_num; m++) {
             int size = dmat_all[m].size();
             for (i = 0; i < size; i++) {
                 dirow_all[m].push_back(i);
@@ -210,7 +204,7 @@ void detector:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log,vector<doubl
             }
         }
         // prepare vector size and vector displacement:
-        for (m = 0; m < stlnum; m++) {
+        for (m = 0; m < electronic_state_num; m++) {
             vsize = total_dmat_size[m] / num_proc;
             vsize2 = total_dmat_size[m] - (num_proc - 1) * vsize;
             vector_size[m] = new int[num_proc];  // size of vector to scatter to each process.
@@ -229,22 +223,22 @@ void detector:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log,vector<doubl
     Scatter_dv(total_dmat_size);  // scatter dv_all
     // construct detector matrix size for each process.
     if(my_id != num_proc-1){
-        for(m=0;m<stlnum;m++) {
+        for(m=0; m < electronic_state_num; m++) {
             vsize= total_dmat_size[m]/num_proc;
             dmatsize[m] = vsize;
         }
     }
     else{
-        for(m=0;m<stlnum;m++){
+        for(m=0; m < electronic_state_num; m++){
             vsize= total_dmat_size[m] - total_dmat_size[m]/num_proc *(num_proc-1);
             dmatsize[m]=vsize;
         }
     }
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         MPI_Allgather(&dmatsize[m],1, MPI_INT,&dmatsize_each_process[m][0],1,MPI_INT,MPI_COMM_WORLD);
     }
     if(my_id == 0) {
-        for (m = 0; m < stlnum; m++) {
+        for (m = 0; m < electronic_state_num; m++) {
             delete[] vector_size[m];
             delete[] displacement_list[m];
         }
@@ -337,7 +331,7 @@ void detector::compute_detector_offdiag_part_MPI(ofstream & log,vector<double> &
     int position;
     double random_number;
     // different process do different amount of work.
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         if(m==0){
             vmode_ptr = &(vmode0);
             dmat_ptr= &(dmat0);
@@ -403,22 +397,22 @@ void detector::compute_detector_offdiag_part_MPI(ofstream & log,vector<double> &
 void detector:: broadcast_dmatnum_doffnum(){
     int m,i;
     // compute dmatnum and doffnum and dmatnum_each_process, total_dmatnum, total_doffnum etc.
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         dmatnum[m]= dmat[m].size();
         doffnum[m]=dmatnum[m] - dmatsize[m];
     }
     // compute toatl_dmatnum, total_dmatoffnum
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         MPI_Allreduce(&dmatnum[m],&total_dmat_num[m],1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
         MPI_Allreduce(&doffnum[m],&total_dmat_off_num[m],1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
     }
     // broadcast detector matrix number and detector matrix off-diagonal number in each process.
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         MPI_Allgather(&dmatnum[m],1,MPI_INT,&dmatnum_each_process[m][0],1,MPI_INT,MPI_COMM_WORLD);
         MPI_Allgather(&doffnum[m], 1, MPI_INT, &doffnum_each_process[m][0], 1, MPI_INT,MPI_COMM_WORLD);
     }
     // compute offset of detector matrix for each process.
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         dmat_offset_each_process[m][0]=0;
         for(i=1;i<num_proc;i++){
             dmat_offset_each_process[m][i] = dmat_offset_each_process[m][i-1] + dmatnum_each_process[m][i-1];
@@ -432,11 +426,11 @@ void detector:: broadcast_total_dmat(){
      construct total_dmat, total_dirow, total_dicol
      use dmatnum_each_process,  dmat_offset_each_process\
     */
-    total_dmat= new double * [stlnum];
-    total_dirow= new int * [stlnum];
-    total_dicol= new int * [stlnum];
+    total_dmat= new double * [electronic_state_num];
+    total_dirow= new int * [electronic_state_num];
+    total_dicol= new int * [electronic_state_num];
     int m;
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         total_dmat[m] = new double [total_dmat_num[m]];
         total_dirow[m] = new int [total_dmat_num[m]];
         total_dicol[m] = new int [total_dmat_num[m]];
@@ -456,14 +450,14 @@ void detector::initialize_detector_state_MPI(ofstream & log) {
     bool check_mark;
     double norm;
     double total_norm;
-    if(stlnum==1) {
+    if(electronic_state_num == 1) {
         if(my_id == 0) {
             xd[1].push_back(1);
             yd[1].push_back(0); // in case electronic_state_num==1
         }
     }
     // this way we initialize wave function according to distribution
-    for (m = 0; m < stlnum; m++) {
+    for (m = 0; m < electronic_state_num; m++) {
         norm = 0;
         int ** control_state;
         control_state=initial_detector_state;
@@ -518,28 +512,28 @@ void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
     double norm;
     double random_number;
     double prob;
-    bright_state=new int * [stlnum];
-    initial_detector_state= new int * [stlnum];
-    initial_Detector_energy= new double [stlnum];
-    bright_state_energy= new double [stlnum];
-    for(m=0;m<stlnum;m++){
+    bright_state=new int * [electronic_state_num];
+    initial_detector_state= new int * [electronic_state_num];
+    initial_Detector_energy= new double [electronic_state_num];
+    bright_state_energy= new double [electronic_state_num];
+    for(m=0; m < electronic_state_num; m++){
         bright_state[m]= new int [nmodes[m]];
         initial_detector_state[m]= new int [nmodes[m]];
         initial_Detector_energy[m]=0;
         bright_state_energy[m]=0;
     }
     if(my_id==0){
-        for(m=0;m<stlnum;m++) {
+        for(m=0; m < electronic_state_num; m++) {
             for (i = 0; i < nmodes[m]; i++) {
                 input >> initial_detector_state[m][i];
             }
         }
     }
-    for(m=0;m<stlnum;m++){ // Broad cast initial detector state.
+    for(m=0; m < electronic_state_num; m++){ // Broad cast initial detector state.
         MPI_Bcast(&initial_detector_state[m][0],nmodes[m],MPI_INT,0,MPI_COMM_WORLD);
     }
 
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         // initialize our initial detector state.  set dark mode's quanta equal to bright_state.
         bright_state[m][0]= initial_detector_state[m][0] + 1;
         for(i=1;i<nmodes[m];i++){   // other dark mode
@@ -553,7 +547,7 @@ void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
 
     if(my_id==0){  // output initial detector state to output.txt
         cout <<"Initial detector state:"<<endl;
-        for(m=0;m<stlnum;m++){
+        for(m=0; m < electronic_state_num; m++){
             for(i=0;i<nmodes[m];i++){
                 cout<< initial_detector_state[m][i] <<" ";
             }
@@ -565,7 +559,7 @@ void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
 void detector:: update_initial_and_bright_detector_energy(){
     // we update energy of initial and bright state of detector. since in Van Vleck transformation, the energy level is shhifted.
     int m,i;
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         initial_Detector_energy[m] = 0;
         bright_state_energy[m] = 0;
         if(my_id == initial_state_pc_id[m]) {
@@ -596,7 +590,7 @@ void detector:: compute_important_state_index(){
     initial_state_pc_id = new int [2];
     // we initialize bright_state_index and initial_state_index.
     // We do this because sometimes we may not include bright state in our simulation, then this index need to be initialized.
-    for(m=0;m<stlnum;m++){
+    for(m=0; m < electronic_state_num; m++){
         bright_state_index[m] = 0;
         initial_state_index[m]=0;
         bright_state_pc_id[m] = 0;
@@ -615,7 +609,7 @@ void detector:: compute_important_state_index(){
             special_state_pc_id = bright_state_pc_id;
         }
         // loop for two detector.
-        for (m = 0; m < stlnum; m++) {
+        for (m = 0; m < electronic_state_num; m++) {
             special_state_vec.clear();
             for (i = 0; i < nmodes[m]; i++) {
                 special_state_vec.push_back(special_state[m][i]);
@@ -725,11 +719,11 @@ void detector:: compute_local_density_of_state(ofstream & local_state_density_ou
     // dmat0 contain all state's energy across process for detector0 . dmat1 contain all state's energy across process for detector 1
     int i,j, k ;
     double energy_difference;
-    double ** density_of_states = new double * [stlnum];
-    double ** total_density_of_states = new double * [stlnum];
+    double ** density_of_states = new double * [electronic_state_num];
+    double ** total_density_of_states = new double * [electronic_state_num];
 
-    int ** dmatsize_displacement = new int * [stlnum];
-    for(i=0;i<stlnum;i++){
+    int ** dmatsize_displacement = new int * [electronic_state_num];
+    for(i=0; i < electronic_state_num; i++){
         dmatsize_displacement[i] = new int [num_proc];
         dmatsize_displacement[i][0] = 0;
         for(j=1;j<num_proc;j++){
@@ -743,16 +737,16 @@ void detector:: compute_local_density_of_state(ofstream & local_state_density_ou
     int global_state_index_dirow = 0;
     int global_state_index_dicol = 0;
 
-    double * coupling_strength_sum = new double [stlnum];
-    double * coupling_strength_sum_all_process = new double[stlnum];
-    double * coupling_strength_average_all_process = new double[stlnum];
+    double * coupling_strength_sum = new double [electronic_state_num];
+    double * coupling_strength_sum_all_process = new double[electronic_state_num];
+    double * coupling_strength_average_all_process = new double[electronic_state_num];
     vector<double> * dmat_ptr ;
 
-    for(i=0;i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
         begin_index[i] = total_dmat_size[i]/num_proc * my_id ;
     }
 
-    for(i=0;i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
         density_of_states[i] = new double [dmatsize[i]];
         for (j=0; j<dmatsize[i] ; j++ ){
             density_of_states[i][j] = 0;
@@ -760,12 +754,12 @@ void detector:: compute_local_density_of_state(ofstream & local_state_density_ou
     }
 
     if(my_id == 0 ){
-        for(i=0;i<stlnum;i++){
+        for(i=0; i < electronic_state_num; i++){
             total_density_of_states[i] = new double [total_dmat_size[i]];
         }
     }
 
-    for(i=0; i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
 
         if(i==0){
             dmat_ptr = & dmat0;
@@ -784,32 +778,32 @@ void detector:: compute_local_density_of_state(ofstream & local_state_density_ou
         }
     }
     // now we collect density_of_states in each process to total_density_of_states
-    for(i=0;i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
         MPI_Gatherv(&density_of_states[i][0],dmatsize[i],MPI_DOUBLE,&total_density_of_states[i][0],
                     dmatsize_each_process[i],dmatsize_displacement[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
 
     // compute coupling strength
-    for(i=0;i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
         coupling_strength_sum[i] = 0;
         for(j= dmatsize[i] ; j<dmatnum[i] ; j++){
             coupling_strength_sum [i] = coupling_strength_sum [i] + abs(dmat[i][j]);
         }
     }
 
-    MPI_Allreduce(&coupling_strength_sum[0],&coupling_strength_sum_all_process[0],stlnum,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
-    for(i=0;i<stlnum;i++){
+    MPI_Allreduce(&coupling_strength_sum[0], &coupling_strength_sum_all_process[0], electronic_state_num, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    for(i=0; i < electronic_state_num; i++){
         coupling_strength_average_all_process[i] = coupling_strength_sum_all_process[i] / (total_dmat_num[i] - total_dmat_size[i]);
     }
 
     if(my_id == 0){
         // output result
         // format : number of states.  quantum number of state | 0 2 1 0 0 0 >. local density of state for that state.
-        for(i=0;i<stlnum;i++){
+        for(i=0; i < electronic_state_num; i++){
             local_state_density_output << coupling_strength_average_all_process[i] << endl;
         }
 
-        for(i=0;i<stlnum;i++){
+        for(i=0; i < electronic_state_num; i++){
             local_state_density_output << total_dmat_size[i] << endl;
             for(j=0;j<total_dmat_size[i];j++){
                 for(k=0;k<nmodes[i];k++){
@@ -822,18 +816,18 @@ void detector:: compute_local_density_of_state(ofstream & local_state_density_ou
     }
 
     delete [] begin_index;
-    for(i=0;i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
         delete [] density_of_states[i];
     }
 
     if(my_id == 0){
-        for(i=0;i<stlnum;i++){
+        for(i=0; i < electronic_state_num; i++){
             delete [] total_density_of_states[i];
         }
     }
     delete [] density_of_states;
     delete [] total_density_of_states;
-    for(i=0;i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
         delete [] dmatsize_displacement [i];
     }
     delete [] dmatsize_displacement;

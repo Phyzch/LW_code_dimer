@@ -11,17 +11,17 @@ void full_system::construct_fullmatrix_with_energy_window_MPI() {
     compute_sstate_dstate_diagpart_dirow_dicol_MPI();
 
     // allocate memory for pointer sdnum, sdindex, sdmode
-    sdnum = new int[s.tldim];
-    total_sd_num = new int [s.tldim];
-    sdnum_each_process = new int * [s.tldim];
-    sdnum_displacement_each_process = new int * [s.tldim];
-    for(i=0;i<s.tldim;i++){
+    sdnum = new int[s.electronic_state_num];
+    total_sd_num = new int [s.electronic_state_num];
+    sdnum_each_process = new int * [s.electronic_state_num];
+    sdnum_displacement_each_process = new int * [s.electronic_state_num];
+    for(i=0;i<s.electronic_state_num; i++){
         sdnum_each_process [i] = new int [num_proc];
         sdnum_displacement_each_process [i] = new int [num_proc];
     }
 
-    sdindex = new  vector<int> [s.tldim];
-    sdmode = new vector<int> [s.tldim];
+    sdindex = new  vector<int> [s.electronic_state_num];
+    sdmode = new vector<int> [s.electronic_state_num];
 
     construct_quotient_state_all_MPI();
     compute_offdiagonal_part_MPI();
@@ -43,7 +43,7 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
         end_index_d1 = d.total_dmat_size[0];
     }
     // sstate ,dstate is index for matrix element in full matrix to record the corresponding index in system and detector.
-    dstate = new vector <int> [s.tldim];
+    dstate = new vector <int> [s.electronic_state_num];
 
     if(s.electronic_state_num == 1){
         for(j=begin_index_d1;j<end_index_d1;j++){

@@ -31,7 +31,7 @@ detector::~detector(){
     delete [] initial_Detector_energy;
     delete [] bright_state_energy;
 
-    for(i=0;i<stlnum;i++){
+    for(i=0; i < electronic_state_num; i++){
         delete [] dmatsize_each_process[i];
         delete [] doffnum_each_process[i];
         delete [] dmatnum_each_process[i];

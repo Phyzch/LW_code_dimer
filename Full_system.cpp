@@ -17,14 +17,13 @@ full_system::full_system(string path1) {
     read_input_with_MPI();
 
 	s.read_MPI(input, output, log);
-	d.read_MPI(input, output, log, s.electronic_state_num, s.tldim, path);
+	d.read_MPI(input, output, s.electronic_state_num, path);
     d.construct_bright_state_MPI(input,output);
 
     compute_detector_matrix_size_MPI_new();
 
     d.construct_dmatrix_MPI(input, output, log,dmat0,dmat1,vmode0,vmode1);
 
-    // construct full matrix Hamiltonian.
     construct_fullmatrix_with_energy_window_MPI();
 
 	if(my_id ==0){
@@ -66,18 +65,18 @@ void full_system::Quantum_evolution() {
 	// matrix and variable for sysrho
 	double se, s0, s1, s2, trsr2;
 	complex<double> ** sr;
-	sr = new complex<double> *[int(pow(2, s.tldim))];  // sr: density matrix of system: (rho)
-	for (i = 0; i < pow(2, s.tldim); i++) {
-		sr[i] = new complex<double>[int(pow(2, s.tldim))];
+	sr = new complex<double> *[int(pow(2, s.electronic_state_num))];  // sr: density matrix of system: (rho)
+	for (i = 0; i < pow(2, s.electronic_state_num); i++) {
+		sr[i] = new complex<double>[int(pow(2, s.electronic_state_num))];
 	}
 
-    double ** mode_quanta= new double * [s.tldim];
-	for (i = 0; i < s.tldim; i++) {
+    double ** mode_quanta= new double * [s.electronic_state_num];
+	for (i = 0; i < s.electronic_state_num; i++) {
 		mode_quanta[i] = new double [d.nmodes[i]];
 	}
-    complex <double> ** dr = new complex<double> * [s.tldim];
-	complex <double> ** total_dr = new complex<double> * [s.tldim];
-	for(i=0;i<s.tldim;i++){
+    complex <double> ** dr = new complex<double> * [s.electronic_state_num];
+	complex <double> ** total_dr = new complex<double> * [s.electronic_state_num];
+	for(i=0;i<s.electronic_state_num; i++){
 	    dr[i] = new complex <double> [d.total_dmat_num[i]];
 	    total_dr[i] = new complex <double> [d.total_dmat_num[i]];
 	}
@@ -158,17 +157,17 @@ void full_system::Quantum_evolution() {
 	delete []  hx;
     delete []  hy;
 
-    for(i=0;i<pow(2,s.tldim);i++){
+    for(i=0;i<pow(2,s.electronic_state_num); i++){
         delete [] sr[i];
     }
     delete [] sr;
 
-    for(i=0;i<s.tldim;i++) {
+    for(i=0;i<s.electronic_state_num; i++) {
         delete[] mode_quanta[i];
     }
     delete [] mode_quanta;
 // delete dr
-    for(i=0;i<s.tldim;i++){
+    for(i=0;i<s.electronic_state_num; i++){
         delete [] dr[i];
         delete [] total_dr[i];
     }
