@@ -9,16 +9,15 @@ double energy_window_size;  // size of energy window, we will only include whole
 double detector_coupling_time = 20 ; // time for detector couple to each other. Beyond that time, detector_coupling strength will be 0.
 
 // initialization of parameters and do some pre-coupling set up
-full_system::full_system(string path1, string cvpt_path1) {
+full_system::full_system(string path1) {
 
 	path = path1;
     d.path = path;
-    d.cvpt_path = cvpt_path1;
     // read hyper parameter and time step from input.txt
     read_input_with_MPI();
 
 	s.read_MPI(input, output, log);
-	d.read_MPI(input, output, log, s.tlnum, s.tldim,path);
+	d.read_MPI(input, output, log, s.electronic_state_num, s.tldim, path);
     d.construct_bright_state_MPI(input,output);
 
     compute_detector_matrix_size_MPI_new();
@@ -83,7 +82,7 @@ void full_system::Quantum_evolution() {
 	    total_dr[i] = new complex <double> [d.total_dmat_num[i]];
 	}
 
-	double * de = new double[s.tlnum]; // detector energy
+	double * de = new double[s.electronic_state_num]; // detector energy
 
 
 	// Here I'd like to create a new file to output detector reduced density matrix and average quanta in each mode.  You can comment this code if you don't want this one.

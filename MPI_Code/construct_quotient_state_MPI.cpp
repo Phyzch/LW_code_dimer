@@ -543,7 +543,7 @@ void full_system::construct_q_index_MPI(){
     bool exist1, exist2;
     vector <quotient_state> * dlist_ptr;
     int list_size;
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         if(m==0) dlist_ptr = &(d1list);  // d1list: quotient state list for detector 1
         else dlist_ptr = &(d2list);  // d2list: quotient state list for detector 2
         list_size= (*dlist_ptr).size();

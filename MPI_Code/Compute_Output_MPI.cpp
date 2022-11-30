@@ -85,9 +85,9 @@ void full_system:: compute_sys_energy_MPI(double & se, double &s0, double &s1, d
     double sr_norm = 0;
     sys_quotient_state * sq;
 
-    double * sr = new double [s.tlmatnum];
-    double  * total_sr = new double [s.tlmatnum];
-    for(i=0;i<s.tlmatnum;i++){
+    double * sr = new double [s.tlmatsize];
+    double  * total_sr = new double [s.tlmatsize];
+    for(i=0;i<s.tlmatsize; i++){
         sr[i]=0;
         total_sr[i]=0;
     }
@@ -103,13 +103,13 @@ void full_system:: compute_sys_energy_MPI(double & se, double &s0, double &s1, d
             sr[sys_xindex] = sr[sys_xindex] + pow(x[local_xindex],2) + pow(y[local_xindex],2);
         }
     }
-    MPI_Allreduce(&sr[0],&total_sr[0],s.tlmatnum,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+    MPI_Allreduce(&sr[0], &total_sr[0], s.tlmatsize, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-    for(i=0;i<s.tlmatnum;i++){
+    for(i=0;i<s.tlmatsize; i++){
         sr_norm = sr_norm + total_sr[i];
     }
 
-    for(i=0;i<s.tlmatnum;i++){
+    for(i=0;i<s.tlmatsize; i++){
         total_sr[i] = total_sr[i] / sr_norm ;
     }
 //    if(my_id == 0){
@@ -125,7 +125,7 @@ void full_system:: compute_sys_energy_MPI(double & se, double &s0, double &s1, d
         }
     }
     se=0;
-    for(i=0;i<s.tlmatnum;i++){
+    for(i=0;i<s.tlmatsize; i++){
         se = se + total_sr[i] * s.tlmat[i];
     }
 
@@ -135,7 +135,7 @@ void full_system:: compute_sys_energy_MPI(double & se, double &s0, double &s1, d
 
 void full_system::detenergy_MPI(double * de, complex <double> ** dr, complex <double> ** total_dr){
     /*  input: de: record energy of two detector.
- *         dr: density matrix of detector, size: [s.tlnum] [dmatnum] same size as dmat
+ *         dr: density matrix of detector, size: [s.electronic_state_num] [dmatnum] same size as dmat
  */
     int m,n;
     int i;
@@ -145,7 +145,7 @@ void full_system::detenergy_MPI(double * de, complex <double> ** dr, complex <do
 
     update_x_y_for_detenergy();
 
-    for(m=0;m<s.tlnum;m++) {
+    for(m=0;m<s.electronic_state_num; m++) {
         // initialize dr
         for (n = 0; n < d.total_dmat_num[m]; n++) {
             dr[m][n] = 0;
@@ -163,13 +163,13 @@ void full_system::detenergy_MPI(double * de, complex <double> ** dr, complex <do
                               complex<double> ( x_for_detenergy[l] , y_for_detenergy[l] );
     }
 
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         MPI_Allreduce(&dr[m][0], & total_dr[m][0], d.total_dmat_num[m],MPI_DOUBLE_COMPLEX,MPI_SUM,MPI_COMM_WORLD);
     }
     
     //Normalize result.
     double total_de_norm = 0;
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         total_de_norm = 0;
 
         for(i=0;i<num_proc;i++){
@@ -184,7 +184,7 @@ void full_system::detenergy_MPI(double * de, complex <double> ** dr, complex <do
         }
     }
     // dr is not organlized, we want to multiply 2 to the off-diag terms. How to identify off-diag term?
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         de[m]=0;
         for(i=0;i<num_proc;i++){
             for(n=d.dmat_offset_each_process[m][i];n<d.dmat_offset_each_process[m][i] + d.dmatsize_each_process[m][i]; n++){
@@ -205,7 +205,7 @@ void full_system::prepare_detenergy_computation_MPI(){
     int size, qlist_size;
     vector<quotient_state> * dlist;
     vector <vector <int>> * qlist;
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         if(m==0) dlist= &(d1list);
         else if (m==1) dlist= &(d2list);
         size= (*dlist).size();
@@ -338,7 +338,7 @@ void full_system:: average_vibrational_mode_quanta_MPI(complex <double> ** total
     int m,i,j;
     vector<vector<int>> * vmode_ptr;
     if(my_id==0) {
-        for (m = 0; m < s.tlnum; m++) {
+        for (m = 0; m < s.electronic_state_num; m++) {
             if (m == 0) {
                 vmode_ptr = &d.dv_all[0];
             } else {
@@ -351,7 +351,7 @@ void full_system:: average_vibrational_mode_quanta_MPI(complex <double> ** total
                 }
             }
         }
-        for(m=0;m<s.tlnum;m++){
+        for(m=0;m<s.electronic_state_num; m++){
             Detector_mode_quanta<<"t=  "<< t << "  Detector "<< m << "  vibrational mode quanta  "<<endl;
             for(j=0;j<d.nmodes[m];j++){
                 Detector_mode_quanta << mode_quanta[m][j]<<"  ";

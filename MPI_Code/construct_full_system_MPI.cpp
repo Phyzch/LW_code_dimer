@@ -45,7 +45,7 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
     // sstate ,dstate is index for matrix element in full matrix to record the corresponding index in system and detector.
     dstate = new vector <int> [s.tldim];
 
-    if(s.tlnum==1){
+    if(s.electronic_state_num == 1){
         for(j=begin_index_d1;j<end_index_d1;j++){
             for(i=0;i<s.tlmatsize;i++){
                 energy= s.tlmat[i] + dmat0[j];
@@ -58,7 +58,7 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
             }
         }
     }
-    else if(s.tlnum==2){
+    else if(s.electronic_state_num == 2){
         for(j= begin_index_d1 ; j< end_index_d1;j++){
                 for (k=0;k<d.total_dmat_size[1];k++) {
 //                    for(i=0;i<s.tlmatsize;i++){
@@ -118,8 +118,8 @@ void full_system::Initial_state_MPI() {
     double value;
     for (i = 0; i < matsize; i++) {
         // (x1 + i y1) (x2 + i y2) (x3 + i y3)
-        x1 = s.xtl[sstate[i]];
-        y1 = s.ytl[sstate[i]];
+        x1 = s.x_electronic[sstate[i]];
+        y1 = s.y_electronic[sstate[i]];
         x2 = d.xd_all[0][dstate[0][i]];
         y2 = d.yd_all[0][dstate[0][i]];
         x3 = d.xd_all[1][dstate[1][i]];
@@ -160,7 +160,7 @@ void full_system::shift_mat(){
         output << "Intra-detector coupling strength V set as: " << d.V_intra << endl;
         output << "Intra-detector coupling scaling parameter a set as  " << d.a_intra << endl;
         output << "Initial Detector state is : " << endl;
-        for (m = 0; m < s.tlnum; m++) {
+        for (m = 0; m < s.electronic_state_num; m++) {
             for (i = 0; i < d.nmodes[m]; i++) {
                 output << d.initial_detector_state[m][i] << " ";
             }

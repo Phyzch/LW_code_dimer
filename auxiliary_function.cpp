@@ -45,10 +45,10 @@ void full_system::dimension_check() {
         exit(-1);
     }
 
-    if (s.tlnum == 1) {
+    if (s.electronic_state_num == 1) {
         output << "Global Matrix: 2*" << d.dmatsize[0] << " = " << matsize << endl;
     }
-    else if (s.tlnum == 2) {
+    else if (s.electronic_state_num == 2) {
         output << "Global Matrix: " << total_matsize << endl;
     }
     output << "off-diagonal matrix number  " << total_offnum << endl;

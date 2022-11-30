@@ -220,10 +220,10 @@ void full_system::gather_mat_irow_icol_sstate_dstate_sdmode_sdindex(double * mat
     MPI_Gatherv(&irow[0],matnum,MPI_INT,&irow_all[0],matnum_each_process,matnum_offset_each_process,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Gatherv(&icol[0],matnum,MPI_INT,&icol_all[0],matnum_each_process,matnum_offset_each_process,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Gatherv(&sstate[0],matsize,MPI_INT,&sstate_all[0],matsize_each_process,matsize_offset_each_process,MPI_INT,0,MPI_COMM_WORLD);
-    for(i=0;i<s.tlnum;i++){
+    for(i=0;i<s.electronic_state_num; i++){
         MPI_Gatherv(&dstate[i][0],matsize,MPI_INT,&dstate_all[i][0],matsize_each_process,matsize_offset_each_process,MPI_INT,0,MPI_COMM_WORLD);
     }
-    for(i=0;i<s.tlnum;i++){
+    for(i=0;i<s.electronic_state_num; i++){
         if(total_sd_num[i]>0) {
             MPI_Gatherv(&sdmode[i][0], sdnum[i], MPI_INT, &sdmode_all[i][0], sdnum_each_process[i],
                         sdnum_displacement_each_process[i], MPI_INT, 0, MPI_COMM_WORLD);
@@ -241,10 +241,10 @@ void full_system:: scatter_mat_irow_icol_sstate_dstate_sdmode_sdindex(double * m
     int * irow_pass = new int [matnum];
     int * icol_pass = new int [matnum];
     int * sstate_pass = new int [matsize];
-    int ** dstate_pass = new int * [s.tlnum];
-    int ** sdmode_pass = new int *[s.tlnum];
-    int ** sdindex_pass = new int * [s.tlnum];
-    for(i=0;i<s.tlnum;i++){
+    int ** dstate_pass = new int * [s.electronic_state_num];
+    int ** sdmode_pass = new int *[s.electronic_state_num];
+    int ** sdindex_pass = new int * [s.electronic_state_num];
+    for(i=0;i<s.electronic_state_num; i++){
         dstate_pass[i] = new int [matsize];
         sdmode_pass[i] = new int [matsize];
         sdindex_pass[i] = new int [matsize];
@@ -253,10 +253,10 @@ void full_system:: scatter_mat_irow_icol_sstate_dstate_sdmode_sdindex(double * m
     MPI_Scatterv(&irow_all[0],matnum_each_process,matnum_offset_each_process,MPI_INT,&irow_pass[0],matnum,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Scatterv(&icol_all[0],matnum_each_process,matnum_offset_each_process,MPI_INT,&icol_pass[0],matnum,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Scatterv(&sstate_all[0],matsize_each_process,matsize_offset_each_process,MPI_INT,&sstate_pass[0],matsize,MPI_INT,0,MPI_COMM_WORLD);
-    for(i=0;i<s.tlnum;i++){
+    for(i=0;i<s.electronic_state_num; i++){
         MPI_Scatterv(&dstate_all[i][0],matsize_each_process,matsize_offset_each_process,MPI_INT,&dstate_pass[i][0],matsize,MPI_INT,0,MPI_COMM_WORLD);
     }
-    for(i=0;i<s.tlnum;i++){
+    for(i=0;i<s.electronic_state_num; i++){
         if(total_sd_num[i] > 0) {
             MPI_Scatterv(&sdmode_all[i][0], sdnum_each_process[i], sdnum_displacement_each_process[i], MPI_INT,
                          &sdmode_pass[i][0], sdnum[i], MPI_INT, 0, MPI_COMM_WORLD);
@@ -274,12 +274,12 @@ void full_system:: scatter_mat_irow_icol_sstate_dstate_sdmode_sdindex(double * m
     for(i=0;i<matsize;i++){
         sstate.push_back(sstate_pass[i]);
     }
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         for(i=0;i<matsize;i++) {
             dstate[m].push_back(dstate_pass[m][i]);
         }
     }
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         for(i=0;i<sdnum[m];i++){
             sdmode[m].push_back(sdmode_pass[m][i]);
             sdindex[m].push_back(sdindex_pass[m][i]);
@@ -289,7 +289,7 @@ void full_system:: scatter_mat_irow_icol_sstate_dstate_sdmode_sdindex(double * m
     delete [] irow_pass;
     delete [] icol_pass;
     delete [] sstate_pass;
-    for(i=0;i<s.tlnum;i++){
+    for(i=0;i<s.electronic_state_num; i++){
         delete [] dstate_pass[i];
         delete [] sdmode_pass[i];
         delete [] sdindex_pass[i];

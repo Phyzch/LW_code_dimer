@@ -53,7 +53,7 @@ void full_system:: combine_offdiagonal_term(vector <double> * sys_detector_mat, 
     int m,i;
     matnum=matsize;
     int size;
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         matnum = matnum + sys_detector_mat[m].size();
     }
     matnum = matnum + d_off_mat.size() + d_d_mat.size();
@@ -61,7 +61,7 @@ void full_system:: combine_offdiagonal_term(vector <double> * sys_detector_mat, 
     irow.reserve(matnum);
     icol.reserve(matnum);
     int matindex=matsize;
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         size = sys_detector_mat[m].size();
         for(i=0;i<size;i++) {
             mat.push_back(sys_detector_mat[m][i]);
@@ -74,7 +74,7 @@ void full_system:: combine_offdiagonal_term(vector <double> * sys_detector_mat, 
             matindex++;
         }
     }
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         MPI_Allgather(&sdnum[m],1,MPI_INT,&sdnum_each_process[m][0],1,MPI_INT,MPI_COMM_WORLD);
         total_sd_num[m] = 0;
         for(i=0;i<num_proc;i++){
@@ -104,7 +104,7 @@ void full_system:: combine_offdiagonal_term(vector <double> * sys_detector_mat, 
 }
 
 void full_system::compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(vector < double > & d_off_mat,vector  <int> & d_off_irow, vector<int> & d_off_icol){
-    for(int i=0;i<s.tlnum;i++){
+    for(int i=0;i<s.electronic_state_num; i++){
         compute_dmat_off_diagonal_matrix_in_full_matrix_one_dmat_MPI(i,d_off_mat,d_off_irow,d_off_icol);
     }
     rearrange_off_diagonal_term(d_off_mat,d_off_irow,d_off_icol);

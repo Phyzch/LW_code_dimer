@@ -13,20 +13,13 @@ int num_proc;
 // if matflag==1: We don't output anything but still we will save our final simulation results in save.txt
 int main(int argc,char * argv []) {
     srand(time(0));
-    string parentpath= "/home/phyzch/CLionProjects/Quantum_Measurement_MPI_version/result/CVPT project/"
-                       "Tunneling between molecules/two side different dof/Batch simulation random frequency/state 0/c=0.1/V=80/";
-    string cvpt_parent_path = "/home/phyzch/CLionProjects/CVPT/data/Potential for flow between molecules/"
-                              "batch simulation no self-coupling from potential/0.2/";
-//    string cvpt_parent_path = "/home/phyzch/CLionProjects/CVPT/data/New Criteria/cutoff 0.05 GOE/";
-    string cvpt_path;
+    string parentpath= "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/BChl try";
+
     string path;
-    string path1;
-    string path2;
-    string path3;
-    string mode_path ;
+
     string s;
     string s1;
-    int i,j,k,l;
+    int i;
     int Filenumber=1;
 
     // MPI Command
@@ -36,10 +29,9 @@ int main(int argc,char * argv []) {
 
     for(i=0;i<Filenumber;i++){
         path=parentpath;
-        cvpt_path =cvpt_parent_path;
 
         { // the parenthese here let destructor called after we use this instance.
-            full_system photon_entangled_system(path,cvpt_path);  // set parameter and construct Hamiltonian.
+            full_system photon_entangled_system(path);  // set parameter and construct Hamiltonian.
             photon_entangled_system.Quantum_evolution(); // creat initial state (or read from file). Then complete simulation.
         }
 

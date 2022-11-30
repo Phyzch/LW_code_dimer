@@ -217,9 +217,9 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
     int steps;
     double detector_tprint = 0.01;
     int output_step= int(detector_tprint/delt); //Output every output_step.
-    double * start_time = new double [s.tlnum];
-    double * final_time = new double [s.tlnum];
-    for(i=0;i<s.tlnum;i++){
+    double * start_time = new double [s.electronic_state_num];
+    double * final_time = new double [s.electronic_state_num];
+    for(i=0;i<s.electronic_state_num; i++){
         start_time[i]=0;
     }
     ofstream Detector_precoup_mode_quanta;
@@ -247,13 +247,13 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
 
     //---------- Allocate space for mode quanta -------------------------------------------
     double ** total_mode_quanta;
-    total_mode_quanta= new double * [s.tlnum];
-    for(m=0;m<s.tlnum;m++){
+    total_mode_quanta= new double * [s.electronic_state_num];
+    for(m=0;m<s.electronic_state_num; m++){
         total_mode_quanta[m]= new double [d.nmodes[m]];
     }
 
-    double ** mode_quanta= new double * [s.tlnum];
-    for (m=0;m<s.tlnum;m++){
+    double ** mode_quanta= new double * [s.electronic_state_num];
+    for (m=0;m<s.electronic_state_num; m++){
         mode_quanta[m]= new double [d.nmodes[m]];
     }
     //--------------Prepare to output detector bright/initial state  -----------------
@@ -263,12 +263,12 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
     else{
         special_state=d.initial_detector_state;
     }
-    special_state_pc_id = new int [s.tlnum];  // record process id that record special state wave function.
-    special_state_index = new int [s.tlnum]; // index for special state in process: special_state_pc_id.
-    special_state_x = new double [s.tlnum];
-    special_state_y= new double [s.tlnum];
+    special_state_pc_id = new int [s.electronic_state_num];  // record process id that record special state wave function.
+    special_state_index = new int [s.electronic_state_num]; // index for special state in process: special_state_pc_id.
+    special_state_x = new double [s.electronic_state_num];
+    special_state_y= new double [s.electronic_state_num];
     bool * exist_bool_for_pc = new bool [num_proc];
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         vector <int> vec_special_state;
         for(i=0;i<d.nmodes[m]; i++){
             vec_special_state.push_back(special_state[m][i]);
@@ -295,16 +295,16 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
     // -----------------------------------------------------------------------------------------------
     // prepare sendbuffer and recv_buffer and corresponding index.
     d.prepare_evolution();
-    vector<complex<double>> * H_phi = new vector<complex<double>> [s.tlnum];
+    vector<complex<double>> * H_phi = new vector<complex<double>> [s.electronic_state_num];
     double de;
     double de_all;
-    for(m=0;m<s.tlnum;m++) {
+    for(m=0;m<s.electronic_state_num; m++) {
         H_phi[m].resize(d.dmatsize[m]);
         for(i=0;i<d.dmatsize[m];i++){
             H_phi[m][i] = 0;
         }
     }
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         final_time[m]=0;
         if(d.proptime[m]>0){
             if(my_id==0){
@@ -399,7 +399,7 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
         Detector_energy.close();
     }
     // -------------- free remote_Vec_Count, remote_Vec_Index -------------------------
-    for(i=0;i<s.tlnum;i++){
+    for(i=0;i<s.electronic_state_num; i++){
         delete [] d.remoteVecCount[i];
         delete [] d.remoteVecPtr[i];
         delete []  d.remoteVecIndex[i];

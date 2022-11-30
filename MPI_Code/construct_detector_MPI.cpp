@@ -459,7 +459,7 @@ void detector::initialize_detector_state_MPI(ofstream & log) {
     if(stlnum==1) {
         if(my_id == 0) {
             xd[1].push_back(1);
-            yd[1].push_back(0); // in case tlnum==1
+            yd[1].push_back(0); // in case electronic_state_num==1
         }
     }
     // this way we initialize wave function according to distribution

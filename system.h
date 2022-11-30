@@ -20,8 +20,8 @@ public:
 	const static int tldim = 2;
 	friend class full_system;
 	friend class detector;
-	double *xtl, *ytl, *tle, *tlmat, *tlrho; //
-	int tlnum, *tlirow, *tlicol, tlmatsize, tlmatnum;
+	double *x_electronic, *y_electronic, *electronic_state_energy, *tlmat; //
+	int electronic_state_num, tlmatsize;
 	void read_MPI(ifstream &input, ofstream &output, ofstream &log);
     void initialize_energy_level(ifstream & input, ofstream & output);
     void initialize_wavefunction(ifstream & input, ofstream & output);
@@ -38,7 +38,6 @@ private:
     int stlnum;
     int stldim;
     string path;
-    string cvpt_path;
 
     int * bright_state_index;
     int * initial_state_index;
@@ -210,7 +209,7 @@ public:
 
 	string path;
 
-	full_system(string path1,string cvpt_path1);
+	full_system(string path1);
 	~full_system();
 	void dimension_check();
 	void Quantum_evolution();;

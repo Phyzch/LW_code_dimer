@@ -23,7 +23,7 @@ void full_system::save_wave_function_MPI(){
     }
     gather_x_y(x_all, y_all);
     if(my_id ==0) {
-        for (i = 0; i < s.tlnum; i++) {
+        for (i = 0; i < s.electronic_state_num; i++) {
             for (j = 0; j < d.nmodes[i]; j++) {
                 save << d.mfreq[i][j] << " ";
             }
@@ -58,7 +58,7 @@ void full_system::load_wave_function_MPI() {
         }
         x_all = new double[total_matsize];
         y_all = new double[total_matsize];
-        for (i = 0; i < s.tlnum; i++) {
+        for (i = 0; i < s.electronic_state_num; i++) {
             for (j = 0; j < d.nmodes[i]; j++) {
                 load >> d.mfreq[i][j];
             }
@@ -80,7 +80,7 @@ void full_system::load_wave_function_MPI() {
 
     // Broadcast time, frequency to all other process
     MPI_Bcast(&t,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    for(i=0;i<s.tlnum;i++){
+    for(i=0;i<s.electronic_state_num; i++){
         MPI_Bcast(&d.mfreq[i][0],d.nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
     scatter_x_y(x_all,y_all);
@@ -117,7 +117,7 @@ void full_system::save_Hamiltonian_MPI(){
         irow_all = new int [total_matnum];
         icol_all = new int [total_matnum];
         sstate_all = new int [total_matsize];
-        for(i=0;i<s.tlnum;i++){
+        for(i=0;i<s.electronic_state_num; i++){
             dstate_all[i] = new int [total_matsize];
             sdindex_all[i] = new int [total_sd_num[i]];
             sdmode_all[i] = new int [total_sd_num[i]];
@@ -148,13 +148,13 @@ void full_system::save_Hamiltonian_MPI(){
 
         for(i=0;i<total_matsize;i++){
             save << sstate_all[i] << " ";
-            for(m=0;m<s.tlnum;m++){
+            for(m=0;m<s.electronic_state_num; m++){
                 save << dstate_all[m][i] <<" ";
             }
         }
         save<<endl;
 
-        for(m=0;m<s.tlnum;m++){
+        for(m=0;m<s.electronic_state_num; m++){
             for(i=0;i<total_sd_num[m];i++){
                 save << sdindex_all[m][i] <<" "<< sdmode_all[m][i] <<" ";
             }
@@ -167,7 +167,7 @@ void full_system::save_Hamiltonian_MPI(){
         delete [] mat_all;
         delete [] irow_all;
         delete [] icol_all;
-        for(m=0;m<s.tlnum;m++){
+        for(m=0;m<s.electronic_state_num; m++){
             delete [] dstate_all[m];
             delete [] sdindex_all[m];
             delete [] sdmode_all[m];
@@ -206,9 +206,9 @@ void full_system::load_Hamiltonian_MPI() {
     matnum_offset_each_process = new int [num_proc];
     mat_offnum_each_process = new int [num_proc];
 
-    dstate = new vector<int> [s.tlnum];
-    sdmode = new vector<int> [s.tlnum];
-    sdindex = new vector<int> [s.tlnum];
+    dstate = new vector<int> [s.electronic_state_num];
+    sdmode = new vector<int> [s.electronic_state_num];
+    sdindex = new vector<int> [s.electronic_state_num];
     if(my_id == 0){
         load.open(path + "save_Hamiltonian.txt");
         if(! load.is_open()){
@@ -225,7 +225,7 @@ void full_system::load_Hamiltonian_MPI() {
         for(i=0;i<num_proc;i++){
            load >> matsize_each_process[i] >> matsize_offset_each_process[i] >> mat_offnum_each_process[i] >> matnum_each_process[i] >> matnum_offset_each_process[i];
         }
-        for(m=0;m<s.tlnum;m++){
+        for(m=0;m<s.electronic_state_num; m++){
             for(i=0;i<num_proc;i++){
                 load >> sdnum_each_process[m][i] >> sdnum_displacement_each_process[m][i] ;
             }
@@ -242,7 +242,7 @@ void full_system::load_Hamiltonian_MPI() {
         irow_all = new int [total_matnum];
         icol_all = new int [total_matnum];
         sstate_all = new int [total_matsize];
-        for(i=0;i<s.tlnum;i++){
+        for(i=0;i<s.electronic_state_num; i++){
             dstate_all[i] = new int [total_matsize];
             sdindex_all[i] = new int [total_sd_num[i]];
             sdmode_all[i] = new int [total_sd_num[i]];
@@ -257,13 +257,13 @@ void full_system::load_Hamiltonian_MPI() {
 
         for(i=0;i<total_matsize;i++){
             load >> sstate_all[i];
-            for(m=0;m<s.tlnum;m++){
+            for(m=0;m<s.electronic_state_num; m++){
                 load >> dstate_all[m][i];
             }
         }
         std::getline(load, ss);
 
-        for(m=0;m<s.tlnum;m++){
+        for(m=0;m<s.electronic_state_num; m++){
             for(i=0;i<total_sd_num[m];i++){
                 load >> sdindex_all[m][i] >> sdmode_all[m][i];
             }
@@ -280,7 +280,7 @@ void full_system::load_Hamiltonian_MPI() {
     MPI_Bcast(&mat_offnum_each_process[0],num_proc,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Bcast(&matnum_each_process[0],num_proc,MPI_INT, 0 , MPI_COMM_WORLD);
     MPI_Bcast(&matnum_offset_each_process[0],num_proc,MPI_INT,0,MPI_COMM_WORLD);
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         MPI_Bcast(&total_sd_num[m],1,MPI_INT,0,MPI_COMM_WORLD);
         MPI_Bcast(&sdnum_each_process[m][0],num_proc,MPI_INT,0,MPI_COMM_WORLD);
         MPI_Bcast(&sdnum_displacement_each_process[m][0],num_proc,MPI_INT,0,MPI_COMM_WORLD);
@@ -288,7 +288,7 @@ void full_system::load_Hamiltonian_MPI() {
     matsize = matsize_each_process[my_id];
     matnum = matnum_each_process[my_id];
     offnum = mat_offnum_each_process[my_id];
-    for(m=0;m<s.tlnum;m++){
+    for(m=0;m<s.electronic_state_num; m++){
         sdnum[m] = sdnum_each_process[m][my_id];
     }
     // scatter matrix and irow, icol , sstate etc to all other process from process 0
@@ -298,7 +298,7 @@ void full_system::load_Hamiltonian_MPI() {
         delete [] mat_all;
         delete [] irow_all;
         delete [] icol_all;
-        for(m=0;m<s.tlnum;m++){
+        for(m=0;m<s.electronic_state_num; m++){
             delete [] dstate_all[m];
             delete [] sdindex_all[m];
             delete [] sdmode_all[m];
