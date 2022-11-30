@@ -5,9 +5,11 @@
 #include"../util.h"
 using namespace std;
 vector<quotient_state> merge_d1list(vector<quotient_state> & qlist1, vector<quotient_state> & qlist2);
+
 void full_system::construct_quotient_state_all_MPI(){
     int i;
     vector<sys_quotient_state> unsorted_slist;
+
     for(i=0;i<matsize;i++) {
         insert_quotient_state(d1list, sstate[i], d.dv_all[1][dstate[1][i]],  irow[i], dstate[0][i]);
         // d2list is already sorted because each process are gauranteed to be sorted.
@@ -543,18 +545,22 @@ void full_system::construct_q_index_MPI(){
     bool exist1, exist2;
     vector <quotient_state> * dlist_ptr;
     int list_size;
+
     for(m=0;m<s.electronic_state_num; m++){
         if(m==0) dlist_ptr = &(d1list);  // d1list: quotient state list for detector 1
         else dlist_ptr = &(d2list);  // d2list: quotient state list for detector 2
         list_size= (*dlist_ptr).size();
+
         for(p=0;p<d.total_dmat_num[m];p++){
-            i= d.total_dirow[m][p];
-            j= d.total_dicol[m][p];
+            i= d.total_dirow[m][p];  // index for state with anharmonic coupling in local monomer. ( also include energy term).
+            j= d.total_dicol[m][p];  // index for state with anharmonic coupling in local monomer.
+
             if(i>j) continue; // we only record half the result.
             value= d.total_dmat[m][p];
+
             for(n=0;n<list_size;n++){
                 // go through quotient space for specific detector.
-                k1=binary_search_dxindex((*dlist_ptr)[n].dxindex,i,exist1);
+                k1 = binary_search_dxindex((*dlist_ptr)[n].dxindex,i,exist1);
                 if(i==j){
                     exist2=exist1;
                     l1=k1;
@@ -562,15 +568,24 @@ void full_system::construct_q_index_MPI(){
                 else{
                     l1= binary_search_dxindex((*dlist_ptr)[n].dxindex,j,exist2);
                 }
+
                 if(exist1 and exist2){
                     k= (*dlist_ptr)[n].xindex[k1];
                     l=(*dlist_ptr)[n].xindex[l1];
+                    // i : state for monomer, j : state for monomer.  i,j monoer state coupled with each other anharmonically.
+                    // k: state in full_matrix, l: state in full matrix.
+                    // p : index in detector mat for local anharmonic coupling
                     vector <int> qindex = {i,j,k,l,p};
+
                     (*dlist_ptr)[n].q_index_list.push_back(qindex);
                     (*dlist_ptr)[n].dmat_value_list.push_back(value);
                 }
+
             }
+
         }
+
     }
+
 }
 

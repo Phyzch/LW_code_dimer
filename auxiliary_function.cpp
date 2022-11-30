@@ -5,15 +5,10 @@
 #include"system.h"
 #include"util.h"
 using namespace std;
+namespace fs = std::experimental::filesystem;
 
 // check some dimension parameter
 void full_system::dimension_check() {
-    double errflag = 0;
-    if (errflag != 0) {
-        log << " Dimension Problem: Error flag=" << errflag << endl;
-        cout<<"Dimension error, Error flag="<<errflag;
-        exit(-1);
-    }
 
     if (s.electronic_state_num == 1) {
         output << "Global Matrix: 2*" << d.dmatsize[0] << " = " << matsize << endl;
@@ -31,10 +26,7 @@ void full_system::dimension_check() {
 full_system::~full_system(){
     // release the space allocated by new. destructor.
     int i;
-    delete [] sdnum;
     delete [] dstate;
-    delete [] sdindex;
-    delete [] sdmode;
     delete [] remoteVecCount;
     delete [] remoteVecPtr;
     delete [] remoteVecIndex;
@@ -42,14 +34,48 @@ full_system::~full_system(){
     delete [] tosendVecPtr;
     delete [] tosendVecIndex;
 
-    delete [] remote_vec_count_for_detenergy;
-    delete [] remote_vec_ptr_for_detenergy;
-    delete [] remote_vec_index_for_detenergy;
-    delete [] to_send_vec_count_for_detenergy;
-    delete [] to_send_vec_ptr_for_detenergy;
-    delete [] to_send_vec_index_for_detenergy;
-    delete [] x_for_detenergy;
-    delete [] y_for_detenergy;
-    delete [] send_x_for_detenergy;
-    delete [] send_y_for_detenergy;
+}
+
+
+void get_current_path(){
+    char buff[FILENAME_MAX];
+    getcwd(buff,FILENAME_MAX);
+    string current_location(buff);
+    cout<<"Current location is :"<<current_location<<endl;   // code for debug output the current location
+}
+
+void check_and_create_file(string parent_path, string path){
+    // check existence of sub-folder, if not , create it.
+    // copy input.txt into subfolder to do simulation.
+    struct stat statbuf;
+    bool isDir = false;
+    if (stat(path.c_str(), &statbuf) != -1) {
+        // get permission to access directory
+        if (S_ISDIR(statbuf.st_mode)) {
+            // is directory
+            isDir = true;
+        }
+    }
+    if (isDir){
+        ;  // directory already exists
+    }
+    else {// create directory
+        if (!mkdir(path.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)) {
+            printf("File created!");  // successfully create folder.
+        } else {
+            printf("Fail to create the file, directory may not exist.");
+            exit(-1);
+        }
+    }
+    // create/update input.txt from existing folder to subfolder for simulation.
+    const fs::path dst= path + "input.txt";
+    const fs::path src= parent_path + "input.txt";
+    if(fs::exists(src)) {
+        // copy input.txt into subfolder.
+        experimental::filesystem::copy_file(src, dst,fs::copy_options::overwrite_existing);
+    }
+    else{
+        cout<<"File do not exist."<<endl;
+        exit(-1);
+    }
 }

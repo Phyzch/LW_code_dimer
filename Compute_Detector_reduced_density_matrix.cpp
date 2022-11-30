@@ -164,6 +164,7 @@ int binary_insert_dxindex(vector <int> & list, int key){
 void insert_quotient_state(vector <quotient_state> & list, int sys_state, vector<int> & vmode1, int xindex, int dxindex) {
     // dxindex: index in detector wavefunction for state in Hilbert space d.
     // xindex: index in photon + detector full system wave function.
+    // sorting according to state in another monomer & sys_state.
     bool exist;
     int position; // position to insert.
     int dxposition; // position to insert xindex, it should be at same position
@@ -176,10 +177,12 @@ void insert_quotient_state(vector <quotient_state> & list, int sys_state, vector
         quotient_state s (vmode,sys_state); // construct quotient_state
         dxposition=binary_insert_dxindex(s.dxindex, dxindex); // insert dx detector index into list with order.
         s.xindex.insert(s.xindex.begin() + dxposition,xindex); // insert x state index into list at same position as dxindex.
+
         list.insert(list.begin() +  position, s);
     }
     else{  // we have to insert xindex and dxindex into our state.
         dxposition=binary_insert_dxindex(list[position].dxindex, dxindex);
+
         list[position].xindex.insert(list[position].xindex.begin() +dxposition, xindex );  // list[position] play same role as s.
     }
 }

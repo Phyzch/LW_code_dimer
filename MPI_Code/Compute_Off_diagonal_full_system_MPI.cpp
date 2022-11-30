@@ -12,18 +12,12 @@ void full_system::compute_offdiagonal_part_MPI(){
     vector<int> d_off_icol;
     compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(d_off_mat,d_off_irow,d_off_icol);
 
-    vector < double > * sys_detector_mat = new vector <double> [2];
-    vector  <int> * sys_detector_irow = new vector <int> [2];
-    vector<int> * sys_detector_icol = new vector <int> [2];
 
-    vector <double>  d_d_mat;
-    vector<int>  d_d_irow;
-    vector<int>  d_d_icol;
 
     // we have to rearrange off-diagonal_matrix in full_system to make sure irow is in  corresponding process.
-    //Also we have to recompute offnum, matnum
-    combine_offdiagonal_term(sys_detector_mat,sys_detector_irow,sys_detector_icol,
-                             d_off_mat,d_off_irow,d_off_icol,d_d_mat,d_d_irow,d_d_icol);
+    //Also we have to compute offnum, matnum
+    combine_offdiagonal_term(d_off_mat,d_off_irow,d_off_icol);
+
 
     offnum= matnum-matsize;
     // compute total_matnum, total_offnum, matnum_each_process, offnum_each_process.
@@ -41,51 +35,23 @@ void full_system::compute_offdiagonal_part_MPI(){
     MPI_Allreduce(&matnum,&total_matnum,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
     MPI_Allreduce(&offnum,&total_offnum,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
 
-    delete [] sys_detector_mat;
-    delete [] sys_detector_irow;
-    delete [] sys_detector_icol;
 }
 
-void full_system:: combine_offdiagonal_term(vector <double> * sys_detector_mat, vector<int> * sys_detector_irow, vector<int> * sys_detector_icol,
-        vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol,
-        vector<double> & d_d_mat, vector<int> & d_d_irow, vector<int> & d_d_icol){
+void full_system:: combine_offdiagonal_term(
+        vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol){
     // combine 3 part of off-diagonal term together and construct sdindex, sdmode, sdnum
+
     int m,i;
     matnum=matsize;
     int size;
-    for(m=0;m<s.electronic_state_num; m++){
-        matnum = matnum + sys_detector_mat[m].size();
-    }
-    matnum = matnum + d_off_mat.size() + d_d_mat.size();
+    matnum = matnum + d_off_mat.size();  // off_mat is for off-diagonal coupling. d_d_mat is for coupling between detector.
     mat.reserve(matnum);
     irow.reserve(matnum);
     icol.reserve(matnum);
-    int matindex=matsize;
-    for(m=0;m<s.electronic_state_num; m++){
-        size = sys_detector_mat[m].size();
-        for(i=0;i<size;i++) {
-            mat.push_back(sys_detector_mat[m][i]);
-            irow.push_back(sys_detector_irow[m][i]);
-            icol.push_back(sys_detector_icol[m][i]);
+    int matindex = matsize;
 
-            sdindex[m].push_back(matindex);  // this sdindex is local index in process.
-            sdmode[m].push_back(0);
-            sdnum[m]++;
-            matindex++;
-        }
-    }
-    for(m=0;m<s.electronic_state_num; m++){
-        MPI_Allgather(&sdnum[m],1,MPI_INT,&sdnum_each_process[m][0],1,MPI_INT,MPI_COMM_WORLD);
-        total_sd_num[m] = 0;
-        for(i=0;i<num_proc;i++){
-            total_sd_num[m] = total_sd_num[m] + sdnum_each_process[m][i] ;
-        }
-        sdnum_displacement_each_process[m][0] = 0;
-        for(i=1;i<num_proc;i++){
-            sdnum_displacement_each_process[m][i] = sdnum_displacement_each_process[m][i-1] + sdnum_each_process[m][i-1];
-        }
-    }
 
+    // push off-diagonal coupling terms into mat.
     size= d_off_mat.size();
     for(i=0;i<size;i++){
         mat.push_back(d_off_mat[i]);
@@ -93,62 +59,13 @@ void full_system:: combine_offdiagonal_term(vector <double> * sys_detector_mat, 
         icol.push_back(d_off_icol[i]);
         matindex++;
     }
-    size = d_d_mat.size();
-    for(i=0;i<size;i++){
-        d_d_index.push_back(matindex);
-        mat.push_back(d_d_mat[i]);
-        irow.push_back(d_d_irow[i]);
-        icol.push_back(d_d_icol[i]);
-        matindex++;
-    }
+
+
 }
 
-void full_system::compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(vector < double > & d_off_mat,vector  <int> & d_off_irow, vector<int> & d_off_icol){
-    for(int i=0;i<s.electronic_state_num; i++){
-        compute_dmat_off_diagonal_matrix_in_full_matrix_one_dmat_MPI(i,d_off_mat,d_off_irow,d_off_icol);
-    }
-    rearrange_off_diagonal_term(d_off_mat,d_off_irow,d_off_icol);
-}
-void full_system::compute_dmat_off_diagonal_matrix_in_full_matrix_one_dmat_MPI(int index,vector < double > & d_off_mat,vector  <int> & d_off_irow, vector<int> & d_off_icol){
-    // we just use q_index easily compute the result.
-    vector<quotient_state> * dlist_ptr;
-    quotient_state * d_ptr;
-    if(index ==0){
-        dlist_ptr = &(d1list);
-    }
-    else{
-        dlist_ptr = &(d2list);
-    }
-    int i,j,k,l,p;
-    int m,n;
-    int size= (*dlist_ptr).size();
-    int q_index_list_size;
-    for(m=0;m<size;m++){
-        d_ptr =&((*dlist_ptr)[m]);
-        q_index_list_size = (*d_ptr).q_index_list.size();
-        for(n=0;n<q_index_list_size;n++){
-            i= (*d_ptr).q_index_list[n][0];   // index in dmat  (diag)
-            j = (*d_ptr).q_index_list[n][1];  // index in dmat  (diag)
-            k=  (*d_ptr).q_index_list[n][2];  // index in mat (diagonal)
-            l= (*d_ptr).q_index_list[n][3];   // index in mat (diagonal)
-            p= (*d_ptr).q_index_list[n][4];   // index in dmat (off_diag)  p in dmat link i,j. or dirow[p] = i, dicol[p]=j
-            if(i!=j){
-                // this is off-diagonal element
-                d_off_mat.push_back((*d_ptr).dmat_value_list[n]);
-                d_off_irow.push_back(k);
-                d_off_icol.push_back(l);
-
-                // we have to count a_{ji} to enable parallel version of SUR algorithm
-                d_off_mat.push_back( (*d_ptr).dmat_value_list[n] );
-                d_off_irow.push_back(l);
-                d_off_icol.push_back(k);
-            }
-        }
-    }
-}
 
 void full_system:: rearrange_off_diagonal_term(vector < double > & sys_detector_mat,vector  <int> & sys_detector_irow,
-        vector<int> & sys_detector_icol){
+                                               vector<int> & sys_detector_icol){
     /*
      rearrange term for off-diagonal part of mat, irow, icol. to make sure for each element, its irow is in
      corresponding process. Although called sys_detector_mat, it can be used for all off-diagonal part for full_matrix.
@@ -282,3 +199,54 @@ void full_system:: rearrange_off_diagonal_term(vector < double > & sys_detector_
     delete [] sys_detector_coup_mat_to_recv;
 
 }
+
+// for dmat off diagonal coupling.
+void full_system::compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(vector < double > & d_off_mat,vector  <int> & d_off_irow, vector<int> & d_off_icol){
+    for(int i=0;i<s.electronic_state_num; i++){
+        compute_dmat_off_diagonal_matrix_in_full_matrix_one_dmat_MPI(i,d_off_mat,d_off_irow,d_off_icol);
+    }
+    rearrange_off_diagonal_term(d_off_mat,d_off_irow,d_off_icol);
+}
+
+void full_system::compute_dmat_off_diagonal_matrix_in_full_matrix_one_dmat_MPI(int index,vector < double > & d_off_mat,vector  <int> & d_off_irow, vector<int> & d_off_icol){
+    // we just use q_index easily compute the result.
+    vector<quotient_state> * dlist_ptr;
+    quotient_state * d_ptr;
+    // index is index for monomer. We include anharmonic coupling in each monomer.
+    if(index ==0){
+        dlist_ptr = &(d1list);
+    }
+    else{
+        dlist_ptr = &(d2list);
+    }
+
+    int i,j,k,l,p;
+    int m,n;
+    int size= (*dlist_ptr).size();
+    int q_index_list_size;
+    for(m=0;m<size;m++){
+        d_ptr =&((*dlist_ptr)[m]);
+        q_index_list_size = (*d_ptr).q_index_list.size();
+        for(n=0;n<q_index_list_size;n++){
+            i= (*d_ptr).q_index_list[n][0];   // index in dmat  (diag)
+            j = (*d_ptr).q_index_list[n][1];  // index in dmat  (diag)
+            k=  (*d_ptr).q_index_list[n][2];  // index in mat (diagonal)
+            l= (*d_ptr).q_index_list[n][3];   // index in mat (diagonal)
+            p= (*d_ptr).q_index_list[n][4];   // index in dmat (off_diag)  p in dmat link i,j. or dirow[p] = i, dicol[p]=j
+
+            if(i!=j){
+                // this is off-diagonal element
+                d_off_mat.push_back((*d_ptr).dmat_value_list[n]);
+                d_off_irow.push_back(k);
+                d_off_icol.push_back(l);
+
+                // we have to count a_{ji} to enable parallel version of SUR algorithm
+                d_off_mat.push_back( (*d_ptr).dmat_value_list[n] );
+                d_off_irow.push_back(l);
+                d_off_icol.push_back(k);
+            }
+        }
+    }
+}
+
+

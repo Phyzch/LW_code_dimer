@@ -10,27 +10,15 @@ void full_system::construct_fullmatrix_with_energy_window_MPI() {
     // compute diagonal part of full system Hamiltonian.
     compute_sstate_dstate_diagpart_dirow_dicol_MPI();
 
-    // allocate memory for pointer sdnum, sdindex, sdmode
-    sdnum = new int[s.electronic_state_num];
-    total_sd_num = new int [s.electronic_state_num];
-    sdnum_each_process = new int * [s.electronic_state_num];
-    sdnum_displacement_each_process = new int * [s.electronic_state_num];
-    for(i=0;i<s.electronic_state_num; i++){
-        sdnum_each_process [i] = new int [num_proc];
-        sdnum_displacement_each_process [i] = new int [num_proc];
-    }
-
-    sdindex = new  vector<int> [s.electronic_state_num];
-    sdmode = new vector<int> [s.electronic_state_num];
-
     construct_quotient_state_all_MPI();
+
     compute_offdiagonal_part_MPI();
 }
 
 void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
    // compute diagonal part and sstate, dstate for full_system.
     int i,j,k,l;
-    int matnum=0;
+    int mat_index = 0;
     double energy;
     // each process responsible to couple detector 1's state with detector 2's state to form state in x,y.
     int vsize_d1 = d.total_dmat_size[0]/num_proc;
@@ -42,42 +30,29 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
     else{
         end_index_d1 = d.total_dmat_size[0];
     }
+
     // sstate ,dstate is index for matrix element in full matrix to record the corresponding index in system and detector.
     dstate = new vector <int> [s.electronic_state_num];
 
-    if(s.electronic_state_num == 1){
-        for(j=begin_index_d1;j<end_index_d1;j++){
+    for(j= begin_index_d1 ; j< end_index_d1;j++){ // index in monomer 1 (detector 1)
+        for (k=0;k<d.total_dmat_size[1];k++) {  // index in monomer 2 (detector 2)
             for(i=0;i<s.tlmatsize;i++){
-                energy= s.tlmat[i] + dmat0[j];
+
+                energy = s.tlmat[i] + dmat0[j] + dmat1[k]; // energy of electronic state + energy in two monomer.
                 sstate.push_back(i);
-                dstate[0].push_back(j);
+                dstate[0].push_back(j); // dstate record detector global index
+                dstate[1].push_back(k);
                 mat.push_back(energy);
-                irow.push_back(matnum);
-                icol.push_back(matnum);
-                matnum = matnum +1 ;
-            }
-        }
-    }
-    else if(s.electronic_state_num == 2){
-        for(j= begin_index_d1 ; j< end_index_d1;j++){
-                for (k=0;k<d.total_dmat_size[1];k++) {
-//                    for(i=0;i<s.tlmatsize;i++){
-                        i=0;
-                        energy = s.tlmat[i] + dmat0[j] + dmat1[k];
-                            sstate.push_back(i);
-                            dstate[0].push_back(j); // dstate record detector global index
-                            dstate[1].push_back(k);
-                            mat.push_back(energy);
-                            irow.push_back(
-                                    matnum); //matnum is local, we have to re-compute it after all process compute its own irow, icol.
-                            icol.push_back(matnum);
-                            matnum = matnum + 1;
-//                    }
+                irow.push_back(
+                        mat_index); //mat_index is local, we have to re-compute it after all process compute its own irow, icol.
+                icol.push_back(mat_index);
+                mat_index = mat_index + 1;
+
             }
         }
     }
 
-    // you have to re-assign the irow, icol in each process:
+    // you have to re-assign the irow, icol in each process for global matrix.:
     matsize= mat.size();
     matsize_each_process= new int [num_proc];
     matsize_offset_each_process = new int [num_proc];
@@ -91,6 +66,7 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
     for(i=0;i<num_proc;i++){
         total_matsize= total_matsize + matsize_each_process[i];
     }
+
     int offset;
     offset= matsize_offset_each_process[my_id];
     // each process re-assign irow, icol according to offset. Now irow, icol is index in global.
@@ -98,6 +74,7 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
         irow[i]= irow[i] + offset;
         icol[i]= icol[i] + offset;
     }
+
 }
 
 

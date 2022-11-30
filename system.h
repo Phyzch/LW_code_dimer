@@ -137,13 +137,6 @@ private:
 	vector <int>sstate;
 	vector<int> * dstate;  // sstate[matsize], dstate[matsize].  index of system state and detector for that matrix element. (This could be replaced by function to save space)
 
-	int * sdnum;
-	int ** sdnum_each_process;
-    int * total_sd_num;
-	int ** sdnum_displacement_each_process;
-	vector<int> * sdindex; // index in mat for system-detector coupling elements
-	vector<int> * sdmode; // mode number k for coupling
-	vector<int> d_d_index; // record index for coupling between detector.
 	double total_energy;
 	double norm; // used to check normalization
     double total_norm;
@@ -213,9 +206,7 @@ public:
     void compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(vector < double > & mat,vector  <int> & irow, vector<int> & icol);
 
     void rearrange_off_diagonal_term(vector < double > & mat,vector  <int> & irow, vector<int> & icol);
-    void  combine_offdiagonal_term(vector <double> * sys_detector_mat, vector<int> * sys_detector_irow, vector<int> * sys_detector_icol,
-                                   vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol,
-                                   vector<double> & d_d_mat, vector<int> & d_d_irow, vector<int> & d_d_icol);
+    void  combine_offdiagonal_term(vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol);
 
     void Initial_state_MPI();
 
@@ -235,10 +226,7 @@ public:
 
     void gather_x_y(double * x_all, double * y_all); // gather x,y to save the state or load the state to file.
     void scatter_x_y(double * x_all, double * y_all); // scatter x_all, y_all to x,y.
-    void gather_mat_irow_icol_sstate_dstate_sdmode_sdindex(double * mat_all, int * irow_all, int * icol_all ,
-                                                                        int * sstate_all, int ** dstate_all,  int ** sdmode_all, int ** sdindex_all);
-    void scatter_mat_irow_icol_sstate_dstate_sdmode_sdindex(double * mat_all, int * irow_all, int * icol_all ,
-                                                       int * sstate_all, int ** dstate_all, int ** sdmode_all, int ** sdindex_all);
+
 
     void Normalize_wave_function();
 };

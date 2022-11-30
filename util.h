@@ -37,5 +37,7 @@ int construct_send_buffer_index(int * remoteVecCount, int * remoteVecPtr, int * 
 
 int compar(const void * a, const void * b);
 
+void check_and_create_file(string parent_path, string path);
+
 #endif //QUANTUM_MEASUREMENT_UTIL_H
 

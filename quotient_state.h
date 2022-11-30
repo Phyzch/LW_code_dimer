@@ -24,14 +24,20 @@ struct sys_quotient_state {
 };
 
 struct quotient_state {   // detector quotient_space_state.
-    int sys_state;  // 0,1,2,3
+    int sys_state;  // state of electronic dof.
     vector<int> vmode; // mode of detector
 
     vector <int> xindex;  // index in system + detector wave function. (x,y)
     vector <int> dxindex; // index in detector reduced density matrix basis (dx, dy).
-    vector<vector<int>> q_index_list; // list of tuple (i,j,k,l,m): i: reduced density matrix index for rho_{i,j}, j: reduced density matrix index for rho_{i,j}
-    // k index in xindex for i (use binary search at first time if we compute density matrix, then store result in k), l index in xindex for j, m: index in dmat
+
+    vector<vector<int>> q_index_list;
+    // list of tuple (i,j,k,l,m):
+    // i : vib state in monomer, j : vib state in monomer.  i,j monoer state coupled with each other anharmonically.
+    // k: state in full_matrix, l: state in full matrix.
+    // m : index in detector mat for local anharmonic coupling
+
     vector<double> dmat_value_list;
+
     quotient_state(vector<int>  & vmode1, int sys_state1){
         sys_state= sys_state1;
         vmode=vmode1;
