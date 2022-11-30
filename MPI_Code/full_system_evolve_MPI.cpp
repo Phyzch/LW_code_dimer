@@ -167,6 +167,24 @@ void full_system::update_y(){
     }
 }
 
+void full_system:: evolve_wave_func_one_step(){
+    int i, j, irow_index, icol_index;
+    // update tosend_xd for sending  to other process
+    update_y();
+    // SUR algorithm
+    for(i=0;i<matnum;i++){
+        irow_index = local_irow[i];
+        icol_index= local_icol[i];
+        x[irow_index] = x[irow_index] + mat[i] * y[icol_index];
+    }
+    update_x();
+    for(i=0;i<matnum;i++){
+        irow_index=local_irow[i];
+        icol_index= local_icol[i];
+        y[irow_index] = y[irow_index] - mat[i] * x[icol_index];
+    }
+}
+
 void full_system::Normalize_wave_function(){
     int i;
     norm = 0;

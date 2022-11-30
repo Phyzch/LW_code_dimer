@@ -225,6 +225,7 @@ public:
     void  update_x_y();
     void update_x();
     void update_y();
+    void evolve_wave_func_one_step();
     void full_system_SUR_one_step();
     // Output function MPI version
 

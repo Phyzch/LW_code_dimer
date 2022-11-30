@@ -67,7 +67,9 @@ void full_system::Quantum_evolution() {
 
 
 	for (k = initial_step; k <= steps; k++) {
+
 		if (k % psteps == 0) {
+		    // Normalize wave function.
 		    Normalize_wave_function();
 		    update_x_y();
 			if(my_id==0) {
@@ -75,22 +77,9 @@ void full_system::Quantum_evolution() {
             }
         }
 
-		t = t + delt;
+        evolve_wave_func_one_step();
 
-		// update tosend_xd for sending  to other process
-        update_y();
-        // SUR algorithm
-        for(i=0;i<matnum;i++){
-            irow_index = local_irow[i];
-            icol_index= local_icol[i];
-            x[irow_index] = x[irow_index] + mat[i] * y[icol_index];
-        }
-        update_x();
-        for(i=0;i<matnum;i++){
-            irow_index=local_irow[i];
-            icol_index= local_icol[i];
-            y[irow_index] = y[irow_index] - mat[i] * x[icol_index];
-        }
+		t = t + delt;
 	}
 
 	end_time = clock();
@@ -99,7 +88,6 @@ void full_system::Quantum_evolution() {
         log << "The total run time for parallel computing is " << (double(duration) /CLOCKS_PER_SEC)/60 << " minutes  for simulation time  " << tmax << endl;
         cout << "The total run time for parallel computing is " << (double(duration)/CLOCKS_PER_SEC)/60 << " minutes  for simulation time  " << tmax << endl;
     }
-
 
 
     // -------------------------- free space
