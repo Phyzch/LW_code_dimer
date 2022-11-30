@@ -38,8 +38,12 @@ void full_system::Quantum_evolution() {
     int i, j, k,m;
     int steps, psteps;
     int irow_index, icol_index;
-    int d_d_coupling_num;
+
     // -----------------------------------------------------------------------------------
+    // convert all matrix elements for ps-wavenumber units
+    for (i = 0; i < matnum; i++) {
+        mat[i] = cf * mat[i];
+    }
 
 	// Now we construct our wavefunction /phi for our detector and full_system.
     d.initialize_detector_state_MPI(log); // initialize detector lower bright state
@@ -48,38 +52,13 @@ void full_system::Quantum_evolution() {
 
     // prepare varibale for evolution.
     prepare_evolution();
-    prepare_detenergy_computation_MPI();
+
     shift_mat();
 
     t = 0;
 
 	steps = tmax / delt + 1; // Total number of steps for simulation.0
 	psteps = tprint / delt;  // number of steps for printing out resuilt
-
-    // matrix for etot
-	double *hx, *hy;
-    hx = new double[matsize];  // we have to rewrite this part. hx should be allocated space outside the function.
-    hy = new double[matsize];
-	// matrix and variable for sysrho
-	double se, s0, s1, s2, trsr2;
-	complex<double> ** sr;
-	sr = new complex<double> *[int(pow(2, s.electronic_state_num))];  // sr: density matrix of system: (rho)
-	for (i = 0; i < pow(2, s.electronic_state_num); i++) {
-		sr[i] = new complex<double>[int(pow(2, s.electronic_state_num))];
-	}
-
-    double ** mode_quanta= new double * [s.electronic_state_num];
-	for (i = 0; i < s.electronic_state_num; i++) {
-		mode_quanta[i] = new double [d.nmodes[i]];
-	}
-    complex <double> ** dr = new complex<double> * [s.electronic_state_num];
-	complex <double> ** total_dr = new complex<double> * [s.electronic_state_num];
-	for(i=0;i<s.electronic_state_num; i++){
-	    dr[i] = new complex <double> [d.total_dmat_num[i]];
-	    total_dr[i] = new complex <double> [d.total_dmat_num[i]];
-	}
-
-	double * de = new double[s.electronic_state_num]; // detector energy
 
 
 	// Here I'd like to create a new file to output detector reduced density matrix and average quanta in each mode.  You can comment this code if you don't want this one.
@@ -98,17 +77,6 @@ void full_system::Quantum_evolution() {
 	start_time = clock();
 	int initial_step = t / delt;
 
-	//--------------------------   for gaussian shape coupling   ----------------------------
-//     coupling between detector will turn off after detector_coupling_time
-    double gauss_time_std = detector_coupling_time/6;
-    double max_strength_time=detector_coupling_time/2;
-    double update_d_d_coupling_time_step = gauss_time_std / 5;
-    int update_steps = update_d_d_coupling_time_step / delt;
-    d_d_coupling_num = d_d_index.size();
-    vector<double> original_d_d_coupling_strength;
-    for(i=0;i<d_d_coupling_num;i++){
-        original_d_d_coupling_strength.push_back(mat[d_d_index[i]]);
-    }
 
 	for (k = initial_step; k <= steps; k++) {
 		if (k % psteps == 0) {
@@ -117,7 +85,6 @@ void full_system::Quantum_evolution() {
 			if(my_id==0) {
                 output << "Steps: " << k << endl;
             }
-            evaluate_system_output_MPI(hx, hy,se,s0,s1,s2,trsr2,de,mode_quanta,sr,dr,total_dr);
         }
 
 		t = t + delt;
@@ -145,32 +112,14 @@ void full_system::Quantum_evolution() {
         cout << "The total run time for parallel computing is " << (double(duration)/CLOCKS_PER_SEC)/60 << " minutes  for simulation time  " << tmax << endl;
     }
 
+
+
     // -------------------------- free space
-	delete []  hx;
-    delete []  hy;
 
-    for(i=0;i<pow(2,s.electronic_state_num); i++){
-        delete [] sr[i];
-    }
-    delete [] sr;
-
-    for(i=0;i<s.electronic_state_num; i++) {
-        delete[] mode_quanta[i];
-    }
-    delete [] mode_quanta;
-// delete dr
-    for(i=0;i<s.electronic_state_num; i++){
-        delete [] dr[i];
-        delete [] total_dr[i];
-    }
-    delete [] dr;
-    delete [] total_dr;
-    delete [] de;
     // ------------------------------------------------------------------------------------
 	input.close();
 	log.close();
 	output.close();
 	Detector_output.close();
 	resource_output.close();
-	replace_first_line();
 }

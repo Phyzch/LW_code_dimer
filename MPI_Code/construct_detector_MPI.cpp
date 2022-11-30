@@ -442,12 +442,6 @@ void detector::initialize_detector_state_MPI(ofstream & log) {
     bool check_mark;
     double norm;
     double total_norm;
-    if(electronic_state_num == 1) {
-        if(my_id == 0) {
-            xd[1].push_back(1);
-            yd[1].push_back(0); // in case electronic_state_num==1
-        }
-    }
     // this way we initialize wave function according to distribution
     for (m = 0; m < electronic_state_num; m++) {
         norm = 0;
@@ -457,20 +451,23 @@ void detector::initialize_detector_state_MPI(ofstream & log) {
             check_mark = true;  // check if state is initial_detector state/ bright state.
 
             for(j=0;j<nmodes[m];j++){
-                if(dv[m][i][j]!=control_state[m][j]){
+                if(dv[m][i][j] != control_state[m][j]){
                     check_mark=false;
                     break;
                 }
             }
+
             if(check_mark) {
                 xd[m].push_back(1);
                 yd[m].push_back(0);
                 norm = norm + pow(xd[m][i], 2) + pow(yd[m][i],2);
             }
+
             else{
                 xd[m].push_back(0);
                 yd[m].push_back(0);
             }
+
         }
         MPI_Allreduce(&norm,&total_norm,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
         //  ---------------------------------------------------------------

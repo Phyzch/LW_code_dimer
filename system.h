@@ -112,10 +112,6 @@ public:
     void SUR_onestep_MPI( int detector_index, double cf);
     void construct_initial_state_MPI(ifstream & input, ofstream & output);
     void initialize_detector_state_MPI(ofstream & log);
-    void save_detector_Hamiltonian_MPI(string path, ofstream & log);
-    void load_detector_Hamiltonian_MPI(string path, ofstream & log);
-    void save_detector_state_MPI(string path,double * final_time,ofstream & log,int initial_state_choice);
-    void load_detector_state_MPI(string path,double * start_time,ofstream & log,int initial_state_choice);
 
     // used to broadcast dv_all , vmode0, vmode1 , dmat0, dmat1
     void Broadcast_dv_all();
@@ -200,8 +196,6 @@ public:
 	~full_system();
 	void dimension_check();
 	void Quantum_evolution();;
-	void replace_first_line(); // just ignore this code, this code do the very dumb work..
-
 
     // MPI version of code:
     void read_input_with_MPI();
@@ -236,30 +230,8 @@ public:
     void full_system_SUR_one_step();
     // Output function MPI version
 
-    void evaluate_system_output_MPI(double *hx, double * hy, double &se, double &s0, double &s1, double &s2,
-                                    double &trsr2, double * de,  double ** mode_quanta, complex<double> ** sr,
-                                    complex<double> ** dr, complex<double> ** total_dr);
-
     void etot_MPI(double * hx, double * hy);
-    void compute_sys_energy_MPI(double & s0, double & s1, double &s2, double & se);
 
-    // variable for compute detenergy_MPI:
-    vector<vector<int>> dr_index_list;
-    int * remote_vec_count_for_detenergy, * remote_vec_ptr_for_detenergy, * remote_vec_index_for_detenergy;
-    int total_remote_vec_num_for_detenergy;
-    int * to_send_vec_count_for_detenergy, * to_send_vec_ptr_for_detenergy, *to_send_vec_index_for_detenergy;
-    int total_to_send_vec_num_for_detenergy;
-
-    vector <int> local_vector_index_for_detenergy;
-
-    double * x_for_detenergy, *y_for_detenergy;
-    double * send_x_for_detenergy , * send_y_for_detenergy;
-
-    void prepare_detenergy_computation_MPI();
-    void update_x_y_for_detenergy();
-    void detenergy_MPI(double * de, complex <double> ** dr, complex <double> ** total_dr);
-
-    void average_vibrational_mode_quanta_MPI(complex <double> ** total_dr, double ** mode_quanta);
     void shift_mat();
 
     void gather_x_y(double * x_all, double * y_all); // gather x,y to save the state or load the state to file.

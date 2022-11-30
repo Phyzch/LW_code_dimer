@@ -112,13 +112,13 @@ void full_system::Initial_state_MPI() {
     x.reserve(matsize);
     y.reserve(matsize);
 
-    // collect xd yd from all other process.
+    // collect xd yd from all other process. for individual monomer (detector).
     d.gather_xd_yd();
 
     double value;
     for (i = 0; i < matsize; i++) {
         // (x1 + i y1) (x2 + i y2) (x3 + i y3)
-        x1 = s.x_electronic[sstate[i]];
+        x1 = s.x_electronic[sstate[i]]; // here we only have two choice: state initially in electronic state 1 or in electronic state 2.
         y1 = s.y_electronic[sstate[i]];
         x2 = d.xd_all[0][dstate[0][i]];
         y2 = d.yd_all[0][dstate[0][i]];
@@ -139,10 +139,6 @@ void full_system::Initial_state_MPI() {
     for (i = 0; i < matsize; i++) {
         x[i] = x[i] * total_norm;
         y[i] = y[i] * total_norm;
-    }
-    // convert all matrix elements for ps-wavenumber units
-    for (i = 0; i < matnum; i++) {
-        mat[i] = cf * mat[i];
     }
 
 }
