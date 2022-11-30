@@ -49,14 +49,12 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
         for(j=begin_index_d1;j<end_index_d1;j++){
             for(i=0;i<s.tlmatsize;i++){
                 energy= s.tlmat[i] + dmat0[j];
-                if(abs(energy - initial_energy) < energy_window_size){
-                    sstate.push_back(i);
-                    dstate[0].push_back(j);
-                    mat.push_back(energy);
-                    irow.push_back(matnum);
-                    icol.push_back(matnum);
-                    matnum = matnum +1 ;
-                }
+                sstate.push_back(i);
+                dstate[0].push_back(j);
+                mat.push_back(energy);
+                irow.push_back(matnum);
+                icol.push_back(matnum);
+                matnum = matnum +1 ;
             }
         }
     }
@@ -66,7 +64,6 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
 //                    for(i=0;i<s.tlmatsize;i++){
                         i=0;
                         energy = s.tlmat[i] + dmat0[j] + dmat1[k];
-//                        if (abs(energy - initial_energy) < energy_window_size) {
                             sstate.push_back(i);
                             dstate[0].push_back(j); // dstate record detector global index
                             dstate[1].push_back(k);
@@ -75,7 +72,6 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
                                     matnum); //matnum is local, we have to re-compute it after all process compute its own irow, icol.
                             icol.push_back(matnum);
                             matnum = matnum + 1;
-//                        }
 //                    }
             }
         }
@@ -159,39 +155,18 @@ void full_system::shift_mat(){
     hy = new double[matsize];
     etot_MPI(hx,hy);  // calculate total energy of system.  MPI_version is not finished yet.
 
-    // Shift matrix for maximum SUR algorithm efficiency unless matflag ==2
-    if (d.matflag != 2) {
-        for (i = 0; i < matsize; i++) {
-            mat[i] = mat[i] - total_energy;
-        }
-    }
-
-//    for(i=0;i<matsize;i++) {
-//        cout << mat[i] << "  ";
-//        if(my_id == 0){
-//            log << mat[i]<<" ";
-//        }
-//    }
-//    cout <<endl;
-
     if(my_id==0) {
-        if(! Continue_Simulation) {
-            output << "Total energy before SUR algorithm shifting  " << total_energy / cf << endl;
-            output << "Intra-detector coupling strength V set as: " << d.V_intra << endl;
-            output << "Intra-detector coupling scaling parameter a set as  " << d.a_intra << endl;
-            output << "We add noise in mode frequency, noise strength:  " << noise_strength << endl;
-            output << "Initial Detector state is : " << endl;
-            for (m = 0; m < s.tlnum; m++) {
-                for (i = 0; i < d.nmodes[m]; i++) {
-                    output << d.initial_detector_state[m][i] << " ";
-                }
-                output << endl;
+        output << "Total energy before SUR algorithm shifting  " << total_energy / cf << endl;
+        output << "Intra-detector coupling strength V set as: " << d.V_intra << endl;
+        output << "Intra-detector coupling scaling parameter a set as  " << d.a_intra << endl;
+        output << "Initial Detector state is : " << endl;
+        for (m = 0; m < s.tlnum; m++) {
+            for (i = 0; i < d.nmodes[m]; i++) {
+                output << d.initial_detector_state[m][i] << " ";
             }
-
-            if (energy_window) {
-                output << "We apply energy window here:  " << energy_window_size << endl;
-            }
+            output << endl;
         }
+        output << "We apply energy window here:  " << energy_window_size << endl;
     }
     delete [] hx;
     delete [] hy;

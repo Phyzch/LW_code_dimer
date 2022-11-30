@@ -4,34 +4,7 @@ using namespace std;
 // advise: When you get lost in all these functions. Keep eye on fullsystem::fullsystem() and full_system::Quantum_evolution. Because
 //they are functions do most of works and call other functions here.
 
-
-//choice to turn on intra-detector coupling and scale it
-bool intra_detector_coupling;  // mark if to scale intra-detector coupling strength.
-double intra_detector_coupling_noise;
-// We set this value to explore the coarse-graining of our system  i.e. Compare system with different dof
-
-// choice to turn on inter_detector coupling and scale it.
-bool inter_detector_coupling;
-double inter_detector_coupling_noise;
-
-// choice to continue our simulation: read wavefunction in  save_wavefunction.txt
-bool Continue_Simulation;
-
-// choice to only simulate detector
-bool detector_only;
-
-double noise_strength;
-
-//choice to continue simulation of detector precoupling state: (Used to investigate decoherence of detector)
-bool Detector_Continue_Simulation;
-
-// energy window choice: We usually turn this on for large dof simulation. This will dramatically decrease computational cost for simulation
-bool energy_window ;
 double energy_window_size;  // size of energy window, we will only include whole system state whose energy difference with
-
-double initial_energy;  // energy of system + detector.
-double system_energy;  // energy of photon
-bool Random_bright_state;
 
 double detector_coupling_time = 20 ; // time for detector couple to each other. Beyond that time, detector_coupling strength will be 0.
 
@@ -43,9 +16,6 @@ full_system::full_system(string path1, string cvpt_path1) {
     d.cvpt_path = cvpt_path1;
     // read hyper parameter and time step from input.txt
     read_input_with_MPI();
-
-    //  store energy of photon in system_energy
-    system_energy=initial_energy;
 
 	s.read_MPI(input, output, log);
 	d.read_MPI(input, output, log, s.tlnum, s.tldim,path);
@@ -85,9 +55,8 @@ void full_system::Quantum_evolution() {
     prepare_detenergy_computation_MPI();
     shift_mat();
 
-	if (! Continue_Simulation) {
-		t = 0;  // if Continue_Simulation == true, the t == tmax of last simulation.
-	}
+    t = 0;
+
 	steps = tmax / delt + 1; // Total number of steps for simulation.0
 	psteps = tprint / delt;  // number of steps for printing out resuilt
 
@@ -119,14 +88,8 @@ void full_system::Quantum_evolution() {
 
 	// Here I'd like to create a new file to output detector reduced density matrix and average quanta in each mode.  You can comment this code if you don't want this one.
 	if(my_id==0) {
-        if (!Continue_Simulation) {
-            Detector_output.open(path + "Detector_output.txt"); // output the information for next simulation.
-            Detector_mode_quanta.open(path + "Detector_mode_quanta.txt");
-        } else {
-            Detector_output.open(path + "Detector_output.txt",
-                                 ios::app); // continue our simulation. we append simulation results in our output.txt already exists.
-            Detector_mode_quanta.open(path + "Detector_mode_quanta.txt", ios::app);
-        }
+        Detector_output.open(path + "Detector_output.txt"); // output the information for next simulation.
+        Detector_mode_quanta.open(path + "Detector_mode_quanta.txt");
 
         // end of code for open detector_output file.
         // read out the memory and time cost at this time point
@@ -134,10 +97,8 @@ void full_system::Quantum_evolution() {
 
         log << "Start SUR Calculation" << endl;
         log << "Total Time steps:" << steps << endl;
-        if (!Continue_Simulation) {
-            output<< "time    s1    s2      Trsr2    se      de[0]       de[1]"
-                     "    e    norm   s0 "<< endl;
-        }
+        output<< "time    s1    s2      Trsr2    se      de[0]       de[1]"
+                 "    e    norm   s0 "<< endl;
     }
 
 
@@ -158,8 +119,7 @@ void full_system::Quantum_evolution() {
     }
 
 	for (k = initial_step; k <= steps; k++) {
-		if (k == initial_step && Continue_Simulation);
-		else if (k % psteps == 0) {
+		if (k % psteps == 0) {
 		    Normalize_wave_function();
 		    update_x_y();
 			if(my_id==0) {
@@ -167,36 +127,6 @@ void full_system::Quantum_evolution() {
             }
             evaluate_system_output_MPI(hx, hy,se,s0,s1,s2,trsr2,de,mode_quanta,sr,dr,total_dr);
         }
-
-		if (t > tstart && ! onflag) {
-			onflag = true;
-			// update coupling for system-detector coupling
-			for(m=0;m<s.tlnum;m++){
-			    for(i=0;i<sdnum[m];i++){
-			        mat[sdindex[m][i]] = d.modcoup[m][sdmode[m][i]] * cf;
-			    }
-			}
-		}
-
-//        // gaussian shape coupling
-//        if(Turn_on_Gaussian_coupling){
-//            if(t<detector_coupling_time and k%update_steps==0){
-//
-//                for(i=0;i<d_d_coupling_num;i++){
-//                    mat[d_d_index[i]] = 6 /sqrt(pi2)* original_d_d_coupling_strength[i]  * exp(-pow( (t-max_strength_time)/ gauss_time_std,2  )/2);
-//                }
-//            }
-//
-//            if(t>detector_coupling_time && d_d_onflag){
-//                log << "Turn off coupling between detector at time:  "<<detector_coupling_time <<endl;
-//                d_d_onflag = false;
-//                // updatge coupling between detector to be 0.
-//                for(i=0;i<d_d_coupling_num;i++){
-//                    mat[d_d_index[i]] = 0;
-//                }
-//            }
-//        }
-
 
 		t = t + delt;
 

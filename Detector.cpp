@@ -14,15 +14,12 @@ detector::~detector(){
     int i;
     delete [] nmodes;
     delete [] nmax;
-    delete [] modtype;
 
     delete [] dmatnum;
     delete [] doffnum;
     delete [] deln;
     delete [] nbar;
     delete [] mfreq;
-    delete [] modcoup;
-    delete [] premodcoup;
     delete [] aij;
     delete [] dirow;
     delete [] dicol;

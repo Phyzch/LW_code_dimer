@@ -7,7 +7,6 @@
 using namespace std;
 int Rmax; // maximum distance allowed in detector state space.
 
-double detector_lower_bright_state_energy_window_shrink;
 int * compute_state_space(const vector <double> & dmat0, const vector <double> & dmat1, double * initial_state_energy, double * bright_state_energy){
     /* input:  dmat0, dmat1: energy for detector state
                initial_state_energy: energy for detector lower bright state, [0] for detector1,  [1] for detector2
@@ -185,8 +184,8 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             }
 
             // criteria for energy window around bright_state and lower bright state for detector 0
-            if ((detector0_energy > d.initial_Detector_energy[0] - d.detector_energy_window_size / detector_lower_bright_state_energy_window_shrink and
-                 detector0_energy < d.initial_Detector_energy[0] + d.detector_energy_window_size / detector_lower_bright_state_energy_window_shrink)
+            if ((detector0_energy > d.initial_Detector_energy[0] - d.detector_energy_window_size  and
+                 detector0_energy < d.initial_Detector_energy[0] + d.detector_energy_window_size)
 //                or (detector0_energy > d.bright_state_energy[0] - d.detector_energy_window_size and
 //                    detector0_energy < d.bright_state_energy[0] + d.detector_energy_window_size)
                     )
@@ -255,8 +254,8 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             }
 
             // criteria for energy window around bright_state and lower bright state for detector 1
-            if ((detector1_energy > d.initial_Detector_energy[1] - d.detector_energy_window_size / detector_lower_bright_state_energy_window_shrink and
-                 detector1_energy < d.initial_Detector_energy[1] + d.detector_energy_window_size / detector_lower_bright_state_energy_window_shrink)
+            if ((detector1_energy > d.initial_Detector_energy[1] - d.detector_energy_window_size and
+                 detector1_energy < d.initial_Detector_energy[1] + d.detector_energy_window_size )
 //                or (detector1_energy > d.bright_state_energy[1] - d.detector_energy_window_size and
 //                    detector1_energy < d.bright_state_energy[1] + d.detector_energy_window_size)
                     )
@@ -352,8 +351,8 @@ void full_system:: compute_detector_matrix_size_MPI_new( ){
             }
 
             // criteria for energy window around bright_state and lower bright state for detector 0
-            if ((detector0_energy > low_initial_state_energy - d.detector_energy_window_size / detector_lower_bright_state_energy_window_shrink and
-                 detector0_energy < high_initial_state_energy + d.detector_energy_window_size / detector_lower_bright_state_energy_window_shrink)
+            if ((detector0_energy > low_initial_state_energy - d.detector_energy_window_size  and
+                 detector0_energy < high_initial_state_energy + d.detector_energy_window_size)
                     )
                 ;
             else {
@@ -424,9 +423,9 @@ void full_system:: compute_detector_matrix_size_MPI_new( ){
 
             // criteria for energy window around bright_state and lower bright state for detector 1
             if ((detector1_energy > low_initial_state_energy -
-                                    d.detector_energy_window_size / detector_lower_bright_state_energy_window_shrink and
+                                    d.detector_energy_window_size and
                  detector1_energy < high_initial_state_energy +
-                                    d.detector_energy_window_size / detector_lower_bright_state_energy_window_shrink)
+                                    d.detector_energy_window_size )
                     )
             {  // criteria here means we only consider detector state whose energy is within small energy window
                 ;
@@ -457,8 +456,6 @@ void full_system:: compute_detector_matrix_size_MPI_new( ){
         label4:;
         // add function here to count state number in dmat1 and dmat0 to get state number.
         int * state_space_size = compute_state_space(dmat0,dmat1,d.initial_Detector_energy, d.bright_state_energy);
-        log << "detector_lower_bright_state_energy_window_shrink   " << detector_lower_bright_state_energy_window_shrink
-            << endl;
         log<< "lower bright state number for detector 1:  "<< state_space_size[0]<<endl;
         log<<"higher bright state number for detector 1:  "<<state_space_size[1]<<endl;
         log<<"lower bright state number for detector 2:  "<<state_space_size[2] <<endl;

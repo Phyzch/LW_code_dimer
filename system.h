@@ -48,7 +48,7 @@ public:
 	// for mode:  modtype: =0 dark or =1 bright state.  nmax: maximum state number for each mode. nmodes: total mode numbers.
 	friend class full_system;
 	friend class system;
-	int *nmodes, **nmax, **modtype;
+	int *nmodes, **nmax;
 	int *dmatsize;
     int *dmatnum , *doffnum;  // detector matrix elemetn array
 	vector<int> total_dmat_size; // size of whole matrix across various process.
@@ -67,7 +67,7 @@ public:
 	vector<int> *dicol;
 	int *deln;  // deln= |n_{i} - n_{j}| at coordinate k
 	double *nbar;
-	double **mfreq, ** modcoup, **premodcoup; // frequency of mode
+	double **mfreq; // frequency of mode
 	double **aij;
 	vector <double> * xd, * yd; // wavefunction of detector state
     double ** xd_all, ** yd_all;
@@ -88,8 +88,8 @@ public:
     //cutoff : perturbation cutoff criterion V / delta - E(typ. 0.05) for states within a single detector
     //cutoff2 : same for states between different detectors : a(i)a(j) / delta - E must be greater than cutoff2
     //kelvin : detector temperature in kelvin
-	int  matflag, maxdis;
-	double cutoff, cutoff2, kelvin;
+	int   maxdis;
+	double cutoff;
 
 	double V_intra, a_intra; // intra detector coupling strength.  a_intra = coupling strength for mfreq = 50.
     double detector_energy_window_size;
@@ -129,10 +129,7 @@ public:
     void Broadcast_dv_all();
     // for Van Vleck transformation
     void output_detector_Hamiltonian(vector<double> & state_energy, vector<vector<int>> & dv);
-    void construct_state_coupling_vanvlk(vector<double> & state_energy_local, vector<double> & state_energy, vector<vector<int>> & dv,
-                                         vector <int> & dirow, vector<int> & dicol);
-    void construct_state_coupling_vanvlk_hybrid(vector<double> & state_energy_local, vector<double> & state_energy, vector<vector<int>> & dv,
-                                                vector <int> & dirow, vector<int> & dicol, ofstream & log , int detector_index);  // use hybrid method for van vleck Hamiltonian
+
     void update_initial_and_bright_detector_energy();
     void compute_important_state_index();
 
@@ -206,7 +203,7 @@ public:
     ofstream Detector_output;
     ofstream Detector_mode_quanta;
 	// timestep variable
-	double delt, tstart, tmax, tprint;
+	double delt, tmax, tprint;
 	double t; // check the time
 
 	double cf; // energy scale
@@ -237,13 +234,11 @@ public:
     void compute_dmat_off_diagonal_matrix_in_full_matrix_one_dmat_MPI(int index,vector < double > & mat,
             vector<int> & irow, vector<int> & icol);
     void compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(vector < double > & mat,vector  <int> & irow, vector<int> & icol);
-    void compute_sys_detector_coupling_MPI(vector < double > * sys_detector_mat, vector  <int> * sys_detector_irow,
-            vector<int> * sys_detector_icol);
+
     void rearrange_off_diagonal_term(vector < double > & mat,vector  <int> & irow, vector<int> & icol);
     void  combine_offdiagonal_term(vector <double> * sys_detector_mat, vector<int> * sys_detector_irow, vector<int> * sys_detector_icol,
                                    vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol,
                                    vector<double> & d_d_mat, vector<int> & d_d_irow, vector<int> & d_d_icol);
-    void compute_detector_detector_coupling_MPI(vector <double> & d_d_mat, vector<int> & d_d_irow, vector<int> & d_d_icol);
 
     void Initial_state_MPI();
 

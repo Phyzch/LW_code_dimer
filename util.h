@@ -25,28 +25,13 @@
 //using namespace concurrency;
 #define pi2 3.141592653589793*2
 using namespace std;
-extern bool intra_detector_coupling;
-extern double intra_detector_coupling_noise;
-extern bool inter_detector_coupling;
-extern double inter_detector_coupling_noise;
-extern bool Continue_Simulation;
-extern bool energy_window;
 extern double energy_window_size;
-extern double initial_energy;
-extern double system_energy;
-extern double noise_strength;
-extern int Rmax;                // defined in compute_matrix_energy_window
-
-extern bool detector_only;
-extern bool Detector_Continue_Simulation;
-extern bool Random_bright_state;
-extern double detector_lower_bright_state_energy_window_shrink;
+extern int Rmax;
 
 extern bool Turn_on_Vanvleck;
 extern int ndegre;
 extern int ndegrx2;
 extern double es_criteria;
-extern double a_intra_external;
 
 extern double detector_coupling_time;
 extern bool Turn_on_Gaussian_coupling;

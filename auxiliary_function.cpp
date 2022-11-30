@@ -19,7 +19,7 @@ void full_system::replace_first_line() {
         temp.open(new_path);
         string line;
         getline(fin, line); // read first line
-        temp << delt << " " << tstart << " " << tmax << " " << tprint << endl;
+        temp << delt << " "  << tmax << " " << tprint << endl;
         while (std::getline(fin, line)) {
             if (line != "") {
                 temp << line << endl;
@@ -39,10 +39,6 @@ void full_system::replace_first_line() {
 // check some dimension parameter
 void full_system::dimension_check() {
     double errflag = 0;
-    if (!energy_window) {
-        if (d.dmatnum[0] > d.dmatdim || d.dmatnum[1] > d.dmatdim) errflag = errflag + 1;
-        if (d.dmatsize[0] > d.detdim || d.dmatsize[1] > d.detdim) errflag = errflag + 2;
-    }
     if (errflag != 0) {
         log << " Dimension Problem: Error flag=" << errflag << endl;
         cout<<"Dimension error, Error flag="<<errflag;
@@ -50,26 +46,15 @@ void full_system::dimension_check() {
     }
 
     if (s.tlnum == 1) {
-        if (! Continue_Simulation) {
-            output << "Global Matrix: 2*" << d.dmatsize[0] << " = " << matsize << endl;
-        }
+        output << "Global Matrix: 2*" << d.dmatsize[0] << " = " << matsize << endl;
     }
     else if (s.tlnum == 2) {
-        if (! Continue_Simulation ) {
-            if (! energy_window) {
-                output << "Global Matrix : 4*" << d.dmatsize[0] << " * " << d.dmatsize[1] << " = " << matsize << endl;
-            }
-            else {
-                output << "Global Matrix: " << total_matsize << endl;
-            }
-        }
+        output << "Global Matrix: " << total_matsize << endl;
     }
-    if (!Continue_Simulation) {
-        output << "off-diagonal matrix number  " << total_offnum << endl;
-        output << "Whole matrix element number  " << total_matnum << endl;
-        log << "off-diagonal matrix number  " << total_offnum << endl;
-        log << "Whole matrix element number  " << total_matnum << endl;
-    }
+    output << "off-diagonal matrix number  " << total_offnum << endl;
+    output << "Whole matrix element number  " << total_matnum << endl;
+    log << "off-diagonal matrix number  " << total_offnum << endl;
+    log << "Whole matrix element number  " << total_matnum << endl;
 };
 
 

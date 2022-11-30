@@ -20,9 +20,7 @@ void system::read_MPI(ifstream &input, ofstream &output, ofstream &log) {
             output.close();
             exit(-5 ); // tlnum is not right.
         }
-        if (!Continue_Simulation) {
-            output << "system  " << tlnum << " ";
-        }
+        output << "system  " << tlnum << " ";
     }
     MPI_Bcast(&tlnum, 1, MPI_INT,0,MPI_COMM_WORLD);
     tlmatsize = pow(2, tlnum);  // system wave function array size.
@@ -45,9 +43,7 @@ void system::initialize_energy_level(ifstream & input, ofstream & output){
     if(my_id==0) {
         for (i = 0; i < tlnum; i++) {
             input >> tle[i];
-            if (!Continue_Simulation) {
-                output << tle[i] << " ";
-            }
+            output << tle[i] << " ";
         }
         output << endl;
     }
@@ -64,9 +60,7 @@ void system::initialize_wavefunction(ifstream & input, ofstream & output){
     if(my_id==0) {
         for (i = 0; i < tlmatsize; i++) {
             input >> xtl[i] >> ytl[i];
-            if (!Continue_Simulation) {
-                output << xtl[i] << " " << ytl[i] << endl;
-            }
+            output << xtl[i] << " " << ytl[i] << endl;
             norm = norm + pow(xtl[i], 2) + pow(ytl[i], 2);
         }
         norm = 1 / sqrt(norm);

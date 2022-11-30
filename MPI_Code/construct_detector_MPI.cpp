@@ -18,18 +18,11 @@ void detector::allocate_space(int tlnum) {
 
     nmax = new int *[tlnum];  // maximum number of quanta in eqch mode.
 
-    // if mode is bright or dark
-    modtype = new int *[tlnum];
-
     dmatsize = new int[tlnum];   // size of detector matrix
 
     mfreq = new double *[tlnum];  // mfreq: frequency of each mode here.
 
     aij = new double * [tlnum];
-
-    modcoup = new double *[tlnum];  // coupling of matrix mod here.
-
-    premodcoup = new double *[tlnum]; // coupling before system and detector contact with each other.
 
     dmat = new vector <double> [tlnum];
 
@@ -67,21 +60,17 @@ void detector::allocate_space(int tlnum) {
 void detector:: allocate_space_single_detector(int detector_index){
     int i= detector_index;
     nmax[i] = new int[nmodes[i]];
-    modtype[i] = new int[nmodes[i]];
     mfreq[i] = new double[nmodes[i]];
     aij[i] = new double[nmodes[i]];
-    modcoup[i] = new double[nmodes[i]];
-    premodcoup[i] = new double[nmodes[i]];
 }
 
 // read parameters for detector matrix construction.
 void detector::read_MPI(ifstream & input, ofstream & output, ofstream & log, int tlnum, int tldim, string path) {
     int i, j;
     int my_id;
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
+    double geometric_mean_frequency;
 
-//    a_intra= 0.3;
-    a_intra= a_intra_external;
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
 
     stlnum=tlnum;
     stldim=tldim;
@@ -91,61 +80,28 @@ void detector::read_MPI(ifstream & input, ofstream & output, ofstream & log, int
         // maxdis: maximum allowed distance.
         // cutoff: cutoff strength for intra-detector coupling strength.  cutoff2: cutoff strength for inter-detector coupling.
         // kelvin: temperature used to initialize detector state.
-        input >> matflag >> maxdis >> cutoff >> cutoff2 >> kelvin;
-        if (! Continue_Simulation) {
-            output << "Detector  " << matflag << " " << maxdis << " " << cutoff << " " << cutoff2 << " " << kelvin << endl;
-        }
+        input >>  maxdis >> cutoff;
+        output << "Detector  " << maxdis << " " << cutoff <<  endl;
         for (i = 0; i < tlnum; i++) {
             input >> nmodes[i] >> proptime[i];
             allocate_space_single_detector(i);
             for (j = 0; j < nmodes[i]; j++) {
-                input >> mfreq[i][j] >> nmax[i][j] >> modtype[i][j] >> premodcoup[i][j] >> modcoup[i][j];
+                input >> mfreq[i][j] >> nmax[i][j]  ;
             }
         }
-        // -----------------------------------------------------------------------------------------------------
-        // add noise to frequency. noise strength is set in input file.
-        if (!Continue_Simulation) {
-            for(i=0;i<tlnum;i++) {
-                for(j=0;j<nmodes[0];j++) {
-                    if (j == 0) {
-//                    mfreq[i][j] =mfreq[i][j] + min(noise_strength * mfreq[i][j], energy_window_size/2) * rand() / RAND_MAX;
-                    }
-                    else {
-                        mfreq[i][j] = mfreq[i][j] * (1 + noise_strength * rand() / RAND_MAX);
-                    }
-                    // set precision of mfreq to 0.01. Convenient to restart simulation.
-                    mfreq[i][j] = floor(mfreq[i][j] *100) /100;
-                }
-            }
+
+        // geometric mean frequency
+        geometric_mean_frequency = 1;
+        for(j=0; j<nmodes[i];j++){
+            geometric_mean_frequency = geometric_mean_frequency * pow(double(mfreq[i][j]) , 1 / double(nmodes[i]));
         }
-        else{
-            ifstream load;
-            load.open(path+"save_wavefunction.txt");
-            if (load.is_open()) {
-                for (i = 0; i < tlnum; i++) {
-                    for (j = 0; j < nmodes[0]; j++) {
-                        load >> mfreq[i][j];
-                    }
-                }
-                load.close();
-            }
-            else{
-                log<<"Can not load Detector frequency from save_wave function.txt"<<endl;
-                MPI_Abort(MPI_COMM_WORLD,-6); // error code -6 : fail to load detector frequency
-            }
-        }
-        //-----------------------------------------------------------------------------------------------------
+
         for(i=0;i<tlnum;i++){
-            if (!Continue_Simulation) {
-                output << nmodes[i] << " " << proptime[i] << endl;
-            }
+            output << nmodes[i] << " " << proptime[i] << endl;
             for(j=0;j<nmodes[i];j++){
-                aij[i][j] = a_intra * pow(double(mfreq[i][j]),0.5) / pow(double(mfreq[0][0] /2),0.5);
+                aij[i][j] = a_intra * pow(double(mfreq[i][j]) / geometric_mean_frequency ,0.5);
                 // aij corresponding to scaling factor for f= f_{bright}/2 cm^{-1}.
-                if (! Continue_Simulation) {
-                    output << mfreq[i][j] << " " << nmax[i][j] << " " << modtype[i][j] << " " << premodcoup[i][j]
-                    << " " << modcoup[i][j] << endl;
-                }
+                output << mfreq[i][j] << " " << nmax[i][j] << endl;
             }
         }
     }
@@ -162,18 +118,12 @@ void detector::read_MPI(ifstream & input, ofstream & output, ofstream & log, int
     deln = new int[max(nmodes[0],nmodes[1])];
     nbar = new double[max(nmodes[0],nmodes[1])];
 
-    MPI_Bcast(&matflag,1,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Bcast(&maxdis,1,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Bcast(&cutoff,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Bcast(&cutoff2,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Bcast(&kelvin,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
     for(i=0;i<stlnum;i++){
         MPI_Bcast(&mfreq[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
         MPI_Bcast(&nmax[i][0],nmodes[i],MPI_INT,0,MPI_COMM_WORLD);
-        MPI_Bcast(&modtype[i][0],nmodes[i],MPI_INT,0,MPI_COMM_WORLD);
-        MPI_Bcast(&premodcoup[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
-        MPI_Bcast(&modcoup[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
         MPI_Bcast(&aij[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
     ndegre = nmodes[0];
@@ -188,23 +138,6 @@ void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstr
     // 1:  traditional way of constructing detector off-diagonal part of matrix
     compute_detector_offdiag_part_MPI(log,dmat0,dmat1,vmode0,vmode1);
 
-    // 2:  applying Van Vleck transformation:
-//    if (Turn_on_Vanvleck) {
-//        if (my_id == 0) {
-//            log << "Use Van Vleck transformation hybrid mode" << endl;
-//        }
-//        // hybrid Van Vleck method: for edge state, use original Hamiltonian, for inner state , use Van Vleck transformation.
-//        construct_state_coupling_vanvlk(dmat[0],dmat0,vmode0,dirow[0],dicol[0]);
-//        construct_state_coupling_vanvlk(dmat[1],dmat1,vmode1,dirow[1],dicol[1]);
-//    }
-//    else{
-//        // one Turn_on_Vanvleck == false, use full Hamiltonian, otherwise use VanVleck transformation. (no hybrid mode)
-//        construct_state_coupling_vanvlk(dmat[0], dmat0, vmode0, dirow[0], dicol[0]);
-//        construct_state_coupling_vanvlk(dmat[1], dmat1, vmode1, dirow[1], dicol[1]);
-//    }
-
-
-
     //--------------------------------------------------------------------------------------------------
     update_initial_and_bright_detector_energy();
 
@@ -215,15 +148,7 @@ void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstr
 
     if(my_id==0){
         for(m=0;m<stlnum;m++){
-            if (! Continue_Simulation) {
-                output << "Matrix for detector " << m << " : " << total_dmat_size[m] << "  " << total_dmat_off_num[m] << endl;
-                if (intra_detector_coupling) {
-                    output << "Turn on function of rescale intra-detector coupling strength:  We scale coupling strength by:  " << intra_detector_coupling_noise << endl;
-                }
-                if (inter_detector_coupling ) {
-                    output << "Turn on function of rescale inter-detector coupling strength:  We scale coupling strength between detector by:  " << inter_detector_coupling_noise << endl;
-                }
-            }
+            output << "Matrix for detector " << m << " : " << total_dmat_size[m] << "  " << total_dmat_off_num[m] << endl;
         }
 
     }
@@ -454,10 +379,6 @@ void detector::compute_detector_offdiag_part_MPI(ofstream & log,vector<double> &
                     } else {
                         value = -V_intra;
                     }
-                    if (intra_detector_coupling) {
-                        do (random_number = 2*((double(rand())/RAND_MAX)-0.5)  ); while (random_number==0) ;
-                        value = value * (1+intra_detector_coupling_noise * random_number);
-                    }
                     for (k = 0; k < nmodes[m]; k++) {
                         value = value * pow(aij[m][k]* nbar[k], deln[k]);
                     }
@@ -609,29 +530,8 @@ void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
     }
     if(my_id==0){
         for(m=0;m<stlnum;m++) {
-            // initialize our bright state from input.txt
-            if (!Random_bright_state) {
-                for (i = 0; i < nmodes[m]; i++) {
-                    input >> initial_detector_state[m][i];
-                }
-            }
-            else {
-                // construct bright state according to Boltzmann distribution.
-                for (i = 0; i < nmodes[m]; i++) {
-                    norm = 0;
-                    for (j = 0; j < nmax[m][i]; j++) {
-                        norm = norm + exp(-mfreq[m][i] * j / (0.7 * kelvin)); // 300 K ~ 200 cm^{-1}
-                    }
-                    do (random_number = double(rand()) / RAND_MAX); while (random_number == 0);
-                    prob = 0;
-                    for (j = 0; j < nmax[m][i]; j++) {
-                        prob = prob + exp(-mfreq[m][i] * j / (0.7 * kelvin)) / norm;
-                        if (prob > random_number) {
-                            initial_detector_state[m][i] = j;
-                            break;
-                        }
-                    }
-                }
+            for (i = 0; i < nmodes[m]; i++) {
+                input >> initial_detector_state[m][i];
             }
         }
     }
@@ -650,8 +550,6 @@ void detector::construct_bright_state_MPI(ifstream & input, ofstream & output){
             bright_state_energy[m] = bright_state_energy[m] + bright_state[m][i] * mfreq[m][i];
         }
     }
-    initial_energy= initial_energy + initial_Detector_energy[0] + initial_Detector_energy[1]; // update initial energy
-    // as system + detector.
 
     if(my_id==0){  // output initial detector state to output.txt
         cout <<"Initial detector state:"<<endl;
@@ -679,7 +577,6 @@ void detector:: update_initial_and_bright_detector_energy(){
         MPI_Bcast(&initial_Detector_energy[m],1,MPI_DOUBLE,initial_state_pc_id[m],MPI_COMM_WORLD);
         MPI_Bcast(&bright_state_energy[m],1,MPI_DOUBLE,bright_state_index[m],MPI_COMM_WORLD);
     }
-    initial_energy= system_energy + initial_Detector_energy[0] + initial_Detector_energy[1]; // update initial energy as system + detector.
 }
 void detector:: compute_important_state_index(){
     // compute bright state index and initial state index for two detector.

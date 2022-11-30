@@ -8,14 +8,9 @@ void check_and_create_file(string parent_path, string path);
 // Information for MPI program
 int my_id;
 int num_proc;
-bool Turn_on_Vanvleck = false ;  // Note when turn on vanvleck, the V_intra and a_intra is decided by vanvlk file there.
-bool Turn_on_Gaussian_coupling =  false;
-double a_intra_external = 0.3;
 
 // About matflag in input.txt: If matflag==2, +We output all x,y (after the pre_coupling), matrix element, detector matrix element etc.
 // if matflag==1: We don't output anything but still we will save our final simulation results in save.txt
-// We also set bool Continue_Simulation in class full_system , which indicate we will read from save.txt the wavefunction and begin our simulation at that point. True means start from the middle of simulation.
-// Warning: Always check Continue_Simulation variable in your code before starting your simulation.  Backup your simulation result output.txt everytime before your simulation.
 int main(int argc,char * argv []) {
     srand(time(0));
     string parentpath= "/home/phyzch/CLionProjects/Quantum_Measurement_MPI_version/result/CVPT project/"
@@ -49,9 +44,6 @@ int main(int argc,char * argv []) {
         }
 
     }
-//
-
-
 
     MPI_Finalize();
 }

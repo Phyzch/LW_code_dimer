@@ -231,35 +231,17 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
     double * special_state_x, * special_state_y;
     bool exist;
     int position;
-    // -------------Load detector state from save data if we want to continue simulation of detector.------------------
-    if(Detector_Continue_Simulation){
-        d.load_detector_state_MPI(path,start_time,log,initial_state_choice);
-    }
     // -----------Open detector_precoup_mode_quanta ofstream -----------------------------
     if(my_id==0){
         if(initial_state_choice==1) {
-            if (Detector_Continue_Simulation) {
-                Detector_precoup_mode_quanta.open(path + "bright_state_detector_precoup_mode_quanta.txt", ofstream::app);
-                Detector_precoup_output.open(path + "bright_state_detector_precoupling.txt", ofstream::app);
-                Detector_energy.open(path+"bright_state_detector_energy.txt",ofstream::app);
-            }
-            else{
-                Detector_precoup_mode_quanta.open(path + "bright_state_detector_precoup_mode_quanta.txt");
-                Detector_precoup_output.open(path + "bright_state_detector_precoupling.txt");
-                Detector_energy.open(path+"bright_state_detector_energy.txt");
-            }
+            Detector_precoup_mode_quanta.open(path + "bright_state_detector_precoup_mode_quanta.txt");
+            Detector_precoup_output.open(path + "bright_state_detector_precoupling.txt");
+            Detector_energy.open(path+"bright_state_detector_energy.txt");
         }
         else{
-            if(Detector_Continue_Simulation){
-                Detector_precoup_mode_quanta.open(path + "lower_bright_state_detector_precoup_mode_quanta.txt", ofstream::app);
-                Detector_precoup_output.open(path + "lower_bright_state_detector_precoupling.txt", ofstream::app);
-                Detector_energy.open(path+"lower_bright_state_detector_energy.txt",ofstream::app);
-            }
-            else {
-                Detector_precoup_mode_quanta.open(path + "lower_bright_state_detector_precoup_mode_quanta.txt");
-                Detector_precoup_output.open(path + "lower_bright_state_detector_precoupling.txt");
-                Detector_energy.open(path+"lower_bright_state_detector_energy.txt");
-            }
+            Detector_precoup_mode_quanta.open(path + "lower_bright_state_detector_precoup_mode_quanta.txt");
+            Detector_precoup_output.open(path + "lower_bright_state_detector_precoupling.txt");
+            Detector_energy.open(path+"lower_bright_state_detector_energy.txt");
         }
     }
 
@@ -330,11 +312,6 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
             }
             t=0;
             steps= d.proptime[m]/delt + 1;
-            if(Continue_Simulation){
-                // update simulation time and t for detector to begin simulation.
-                t=start_time[m];
-                steps= (d.proptime[m]-start_time[m])/delt + 1;
-            }
             if(my_id==0){
                 Detector_precoup_mode_quanta << "Detector mode quanta for Detector " << m << endl;
                 Detector_precoup_mode_quanta << "total time: " << (d.proptime[m]-start_time[m]) << " " << delt * output_step << endl;

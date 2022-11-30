@@ -424,36 +424,6 @@ void  construct_state_coupling_subroutine(vector<double> & state_energy_local ,v
     }
 }
 
-void detector::construct_state_coupling_vanvlk(vector<double> & state_energy_local, vector<double> & state_energy, vector<vector<int>> & dv,
-                                               vector <int> & dirow, vector<int> & dicol){
-    // state_energy_local is dmat[0] \ dmat[1] , which is local detector matrix in each process.
-    // state_energy is dmat0 or dmat1, which is detector matrix (diagonal part) shared by all process
-    vector <double> frequency;
-    vector <double> Coeff;
-    vector <double> energy_decrease_list;
-    vector<vector<int>> Normal_Form;
-    int norder;
-    int * mcount;
-    if(my_id == 0) {
-        if (Turn_on_Vanvleck) {
-            Read_Vanvleck_output(cvpt_path, norder, frequency, energy_decrease_list, Coeff, Normal_Form);
-        }
-        else {
-            Read_ham4x_out(cvpt_path, norder, frequency, energy_decrease_list, Coeff, Normal_Form);
-        }
-        ifstream pot_dat(cvpt_path + "pot.dat");
-        assert(!pot_dat.fail());
-        pot_dat >> a_intra >> V_intra;
-        pot_dat.close();
-    }
-    MPI_Bcast(&a_intra,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Bcast(&V_intra,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    Broadcast_vanvlk_data(norder,frequency,energy_decrease_list,Coeff,Normal_Form);
-    // Bin the coupling term
-    mcount = Bin_coupling_term(energy_decrease_list,Coeff,Normal_Form);
-    // compute diagonal correction to matrix and off-diagonal term there
-    construct_state_coupling_subroutine(state_energy_local, state_energy,dv,dirow,dicol,energy_decrease_list,Coeff,Normal_Form,mcount, cutoff);
-}
 
 void Broadcast_vanvlk_data(int & norder, vector<double> & frequency, vector<double> & energy_decrease_list,
                            vector<double> & Coeff, vector<vector<int>> & Normal_form){
@@ -652,52 +622,6 @@ void  construct_state_coupling_hybrid_subroutine(vector<double> & state_energy_l
 
 }
 
-void detector:: construct_state_coupling_vanvlk_hybrid(vector<double> & state_energy_local, vector<double> & state_energy, vector<vector<int>> & dv,
-                                                       vector <int> & dirow, vector<int> & dicol,ofstream & log, int detector_index){
-    // state_energy_local is dmat[0] \ dmat[1] , which is local detector matrix in each process.
-    // state_energy is dmat0 or dmat1, which is detector matrix (diagonal part) shared by all process
-    vector <double> frequency;
-    vector <double> Coeff;
-    vector <double> energy_decrease_list;
-    vector<vector<int>> Normal_Form;
-    vector <double> Coeff_full_dynamics;
-    vector <double> energy_decrease_list_full_dynamics;
-    vector< vector<int>> Normal_Form_full_dynamics;
-    int norder;
-    int * mcount , *mcount_full_dynamics;
-    if(my_id == 0) {
-
-        Read_Vanvleck_output(cvpt_path, norder, frequency, energy_decrease_list, Coeff, Normal_Form);
-
-        Read_ham4x_out(cvpt_path, norder, frequency, energy_decrease_list_full_dynamics,
-                       Coeff_full_dynamics, Normal_Form_full_dynamics);
-
-        ifstream pot_dat(cvpt_path + "pot.dat");
-        assert(!pot_dat.fail());
-        pot_dat >> a_intra >> V_intra;
-        pot_dat.close();
-    }
-    MPI_Bcast(&a_intra,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Bcast(&V_intra,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-
-    Broadcast_vanvlk_data(norder,frequency,energy_decrease_list,Coeff,Normal_Form);
-    Broadcast_vanvlk_data(norder,frequency,energy_decrease_list_full_dynamics,
-                          Coeff_full_dynamics,Normal_Form_full_dynamics);
-    // Bin the coupling term
-    mcount = Bin_coupling_term(energy_decrease_list,Coeff,Normal_Form);
-    mcount_full_dynamics = Bin_coupling_term(energy_decrease_list_full_dynamics,
-                                             Coeff_full_dynamics,Normal_Form_full_dynamics);
-
-    if (my_id == 0){
-        log << "Van Vleck hybrid method es criteria = " << es_criteria <<endl;
-    }
-    // compute diagonal correction to matrix and off-diagonal term there
-    construct_state_coupling_hybrid_subroutine(state_energy_local,state_energy,dv,dirow,dicol,
-                                               energy_decrease_list,Coeff,Normal_Form,mcount,
-                                               energy_decrease_list_full_dynamics,Coeff_full_dynamics,
-                                               Normal_Form_full_dynamics,mcount_full_dynamics,
-                                               cutoff,log,detector_index);
-}
 
 void detector:: output_detector_Hamiltonian(vector<double> & state_energy, vector<vector<int>> & dv){
     ofstream Hamiltonian(path+"Hamiltonian.txt");
