@@ -37,6 +37,11 @@ int full_system::search_full_sys_matrix_given_sd_matrix(int s_state, int d1_stat
 
     x_index1 = d1list[d_list_position].xindex[xlist_position];
 
+    if ( (sstate[x_index1]!= s_state) or (dstate[0][x_index1]!= d1_state) or (dstate[1][x_index1]!= d2_state ) ){
+        printf("search state index in full system is wrong.");
+        MPI_Abort(MPI_COMM_WORLD, -30);
+    }
+
     return x_index1;
 }
 
@@ -175,6 +180,98 @@ void detector::find_franck_condon_factor_for_monomer_states(){
         }
         nonadiabatic_coupled_d_state.push_back(nonadiabatic_coupled_state_each_monomer);
         nonadiabatic_coupled_d_state_franck_condon.push_back(nonadiabatic_coupled_state_each_monomer_fc);
+
+    }
+
+}
+
+
+void full_system:: compute_nonadiabatic_offdiagonal_matrix_full_system(vector < double > & nonadiabatic_off_mat, vector  <int> & nonadiabatic_off_irow, vector<int> & nonadiabatic_off_icol){
+    int i,j,k;
+    // electronic & monomer state index for full_sys state we are considering.
+    int state_s_index;
+    int state_d1_index, state_d2_index;
+
+    // electronic & monomer state index for nonadiabatically coupled states
+    int coupled_state_s_index;
+    int coupled_state_d1_index, coupled_state_d2_index;
+
+    int state_index_in_dimer;
+    int coupled_state_index_in_dimer;
+
+    // number of coupled vib states for given monomer
+    int coupled_monomer1_state_num, coupled_monomer2_state_num;
+
+    // value for off-diagonal coupling matrix element.
+    double off_diagonal_matrix_ele;
+    double franck_condon_factor_d1, franck_condon_factor_d2;
+
+    double state_energy, coupled_state_energy;
+    double state_energy_difference;
+
+    bool include_off_diag_coupling_bool; // bool to decide if including off diagonal coupling
+
+    // compute franck condon factor <m| alpha;n>. result stored in d.franck_condon_factor_table
+    d.compute_franck_condon_factor_table();
+
+    // for each vib states in monomer, we find vib states coupled to them whose franck condon factor is larger than Franck_condon_factor_cutoff
+    d.find_franck_condon_factor_for_monomer_states();
+
+    // now for each vib state in dimer system, (monomer1 + monomer2).
+    // we find states coupled to dimer vib states.
+    for(i=0; i<matsize;i++){
+        state_index_in_dimer = irow[i];
+
+        state_s_index = sstate[i];
+        state_d1_index = dstate[0][i];
+        state_d2_index = dstate[1][i];
+
+        state_energy = s.tlmat[state_s_index] + dmat0[state_d1_index] + dmat1[state_d2_index];
+
+        if (state_s_index == 0){
+            coupled_state_s_index = 1;
+        }
+        else{
+            coupled_state_s_index = 0;
+        }
+
+        coupled_monomer1_state_num = d.nonadiabatic_coupled_d_state[0][state_d1_index].size();
+        coupled_monomer2_state_num = d.nonadiabatic_coupled_d_state[1][state_d2_index].size();
+
+        for(j=0;j<coupled_monomer1_state_num;j++){
+            coupled_state_d1_index = d.nonadiabatic_coupled_d_state[0][state_d1_index][j];
+            for(k=0;k<coupled_monomer2_state_num; k++){
+                coupled_state_d2_index = d.nonadiabatic_coupled_d_state[1][state_d2_index][k];
+
+                include_off_diag_coupling_bool = false;
+                // coupled state index in full matrix (dimer)
+                coupled_state_index_in_dimer = search_full_sys_matrix_given_sd_matrix(coupled_state_s_index, coupled_state_d1_index, coupled_state_d2_index);
+
+                franck_condon_factor_d1 = d.nonadiabatic_coupled_d_state_franck_condon[0][state_d1_index][j];
+                franck_condon_factor_d2 = d.nonadiabatic_coupled_d_state_franck_condon[1][state_d2_index][k];
+
+                off_diagonal_matrix_ele = nonadiabatic_coupling * franck_condon_factor_d1 * franck_condon_factor_d2;
+
+                coupled_state_energy = s.tlmat[ coupled_state_s_index ] + dmat0[coupled_state_d1_index] + dmat1[coupled_state_d2_index];
+
+                state_energy_difference = abs(state_energy - coupled_state_energy);
+
+                if (state_energy_difference == 0){
+                    include_off_diag_coupling_bool = true;
+                }
+                else if( abs(off_diagonal_matrix_ele / state_energy_difference) > d.cutoff ){
+                    include_off_diag_coupling_bool = true;
+                }
+
+                if (include_off_diag_coupling_bool){
+                    // include this off-diagonal coupling.
+                    nonadiabatic_off_mat.push_back(off_diagonal_matrix_ele);
+                    nonadiabatic_off_irow.push_back(irow[i]);
+                    nonadiabatic_off_icol.push_back(coupled_state_index_in_dimer);
+                }
+
+            }
+        }
 
     }
 

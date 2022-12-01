@@ -215,8 +215,13 @@ public:
             vector<int> & irow, vector<int> & icol);
     void compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(vector < double > & mat,vector  <int> & irow, vector<int> & icol);
 
+    void compute_nonadiabatic_offdiagonal_matrix_full_system(vector < double > & nonadiabatic_off_mat,
+                                                             vector  <int> & nonadiabatic_off_irow,
+                                                             vector<int> & nonadiabatic_off_icol);
+
     void rearrange_off_diagonal_term(vector < double > & mat,vector  <int> & irow, vector<int> & icol);
-    void  combine_offdiagonal_term(vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol);
+    void  combine_offdiagonal_term(vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol,
+                                   vector<double> & nonadiabatic_off_mat, vector<int> & nonadiabatic_off_irow, vector<int> & nonadiabatic_off_icol);
 
     void Initial_state_MPI();
 

@@ -12,9 +12,16 @@ void full_system::compute_offdiagonal_part_MPI(){
     vector<int> d_off_icol;
     compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(d_off_mat,d_off_irow,d_off_icol);
 
+    vector<double> nonadiabatic_off_mat;
+    vector<int> nonadiabatic_off_irow;
+    vector<int> nonadiabatic_off_icol;
+    compute_nonadiabatic_offdiagonal_matrix_full_system(nonadiabatic_off_mat, nonadiabatic_off_irow, nonadiabatic_off_icol);
+
+
     // we have to rearrange off-diagonal_matrix in full_system to make sure irow is in  corresponding process.
     //Also we have to compute offnum, matnum
-    combine_offdiagonal_term(d_off_mat,d_off_irow,d_off_icol);
+    combine_offdiagonal_term(d_off_mat,d_off_irow,d_off_icol,
+                             nonadiabatic_off_mat, nonadiabatic_off_irow, nonadiabatic_off_icol);
 
 
     offnum= matnum-matsize;
@@ -36,13 +43,17 @@ void full_system::compute_offdiagonal_part_MPI(){
 }
 
 void full_system:: combine_offdiagonal_term(
-        vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol){
+        vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol,
+        vector<double> & nonadiabatic_off_mat, vector<int> & nonadiabatic_off_irow, vector<int> & nonadiabatic_off_icol){
     // combine 3 part of off-diagonal term together and construct sdindex, sdmode, sdnum
 
     int m,i;
     matnum=matsize;
     int size;
-    matnum = matnum + d_off_mat.size();  // off_mat is for off-diagonal coupling. d_d_mat is for coupling between detector.
+
+
+    matnum = matnum + d_off_mat.size() + nonadiabatic_off_mat.size();  // off_mat is for off-diagonal coupling. d_d_mat is for coupling between detector.
+
     mat.reserve(matnum);
     irow.reserve(matnum);
     icol.reserve(matnum);
@@ -58,6 +69,13 @@ void full_system:: combine_offdiagonal_term(
         matindex++;
     }
 
+    size = nonadiabatic_off_mat.size();
+    for(i=0;i<size;i++){
+        mat.push_back(nonadiabatic_off_mat[i]);
+        irow.push_back(nonadiabatic_off_irow[i]);
+        icol.push_back(nonadiabatic_off_icol[i]);
+        matindex ++;
+    }
 
 }
 
