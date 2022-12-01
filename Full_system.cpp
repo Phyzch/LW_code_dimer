@@ -4,10 +4,6 @@ using namespace std;
 // advise: When you get lost in all these functions. Keep eye on fullsystem::fullsystem() and full_system::Quantum_evolution. Because
 //they are functions do most of works and call other functions here.
 
-double energy_window_size;  // size of energy window, we will only include whole system state whose energy difference with
-
-double detector_coupling_time = 20 ; // time for detector couple to each other. Beyond that time, detector_coupling strength will be 0.
-
 // initialization of parameters and do some pre-coupling set up
 full_system::full_system(string path1) {
 
@@ -39,6 +35,13 @@ void full_system::Quantum_evolution() {
     int steps, psteps;
     int irow_index, icol_index;
 
+    // compute initial state energy.
+    double initial_state_energy;
+    if(my_id == initial_dimer_state_pc_id){
+        initial_state_energy = mat[initial_dimer_state_index];
+    }
+    MPI_Bcast(&initial_state_energy, 1, MPI_DOUBLE, initial_dimer_state_pc_id, MPI_COMM_WORLD);
+
     // -----------------------------------------------------------------------------------
     // convert all matrix elements for ps-wavenumber units
     for (i = 0; i < matnum; i++) {
@@ -65,19 +68,55 @@ void full_system::Quantum_evolution() {
 	start_time = clock();
 	int initial_step = t / delt;
 
+    // for computing survival probability
+    double survival_prob = 0;
+
+    // vibrational survival prob
+    ofstream survival_prob_out;
+    if(my_id == 0){
+        survival_prob_out.open(path + "survival_prob.txt");
+        // output energy
+
+        survival_prob_out << initial_state_energy << " "; // energy for state
+        survival_prob_out << endl;
+
+        // output mode quanta
+        for(m=0;m<d.electronic_state_num;m++){
+            for(j=0;j<d.nmodes[m];j++){
+                survival_prob_out << d.initial_detector_state[m][j]<<"  ";
+            }
+            survival_prob_out << endl;
+        }
+    }
+
 
 	for (k = initial_step; k <= steps; k++) {
 
 		if (k % psteps == 0) {
+            // output result.
 		    // Normalize wave function.
 		    Normalize_wave_function();
 		    update_x_y();
 			if(my_id==0) {
                 output << "Steps: " << k << endl;
             }
+
+            // ---------- code for computing survival probability --------
+            if(my_id == initial_dimer_state_pc_id){
+                survival_prob = pow(x[initial_dimer_state_index],2) + pow(y[initial_dimer_state_index] , 2) ;
+            }
+            MPI_Bcast(&survival_prob,1, MPI_DOUBLE, initial_dimer_state_pc_id, MPI_COMM_WORLD);
+            if(my_id == 0){
+                // output survival prob
+                survival_prob_out << t << endl;
+                survival_prob_out << survival_prob << endl;
+            }
+            // --------- end for code computing survival probability ------
+
         }
 
         evolve_wave_func_one_step();
+
 
 		t = t + delt;
 	}
@@ -97,4 +136,5 @@ void full_system::Quantum_evolution() {
 	log.close();
 	output.close();
 	resource_output.close();
+    survival_prob_out.close();
 }

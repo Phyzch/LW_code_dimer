@@ -22,7 +22,7 @@ void full_system::construct_quotient_state_all_MPI(){
     for(i=0;i<total_matsize; i++){
         // we have to use dstate_all and sstate_all, as it corresponds to all full_system states instead of state in one process.
         // d2list_all is used to search full matrix index. (each process can search by themselves without communicating with each other.)
-        insert_quotient_state(d2list_all, sstate_all[i], d.dv_all[0][ dstate_all[0][i] ], irow[i], dstate_all[1][i]);
+        insert_quotient_state(d2list_all, sstate_all[i], d.dv_all[0][ dstate_all[0][i] ], i , dstate_all[1][i]);
     }
 
     for(i=0;i<matsize;i++){

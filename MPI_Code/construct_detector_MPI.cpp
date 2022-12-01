@@ -88,13 +88,15 @@ void detector::read_MPI(ifstream & input, ofstream & output, int electronic_stat
             }
         }
 
-        // geometric mean frequency
-        geometric_mean_frequency = 1;
-        for(j=0; j<nmodes[i];j++){
-            geometric_mean_frequency = geometric_mean_frequency * pow(double(mfreq[i][j]) , 1 / double(nmodes[i]));
-        }
 
         for(i=0; i < electronic_state_num; i++){
+            // geometric mean frequency
+            geometric_mean_frequency = 1;
+            for(j=0; j<nmodes[i];j++){
+                geometric_mean_frequency = geometric_mean_frequency * pow(double(mfreq[i][j]) , 1 / double(nmodes[i]));
+            }
+
+
             output << nmodes[i] << " " << proptime[i] << endl;
             for(j=0;j<nmodes[i];j++){
                 aij[i][j] = a_intra * pow(double(mfreq[i][j]) / geometric_mean_frequency ,0.5);

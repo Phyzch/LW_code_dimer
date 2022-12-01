@@ -109,7 +109,7 @@ void detector::compute_franck_condon_factor_table() {
         franck_condon_factor_table[m] = new double **[nmodes[m]];
         for(j=0;j<nmodes[m];j++){
             franck_condon_factor_table[m][j] = new double * [max_qn];
-            for(k=0; k<nmodes[m]; k++){
+            for(k=0; k<max_qn; k++){
                 franck_condon_factor_table[m][j][k] = new double [max_qn];
             }
         }

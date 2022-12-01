@@ -150,6 +150,9 @@ private:
     vector<int> sstate_all;
     vector<int> * dstate_all;
 
+    int initial_dimer_state_index; // index in process (local index)
+    int initial_dimer_state_pc_id; // process id for index.
+
 	double total_energy;
 	double norm; // used to check normalization
     double total_norm;

@@ -10,7 +10,7 @@ int num_proc;
 
 int main(int argc,char * argv []) {
     srand(time(0));
-    string parentpath= "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/BChl try";
+    string parentpath= "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/BChl try/";
 
     string path;
 

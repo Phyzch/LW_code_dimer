@@ -25,10 +25,8 @@
 //using namespace concurrency;
 #define pi2 3.141592653589793*2
 using namespace std;
-extern double energy_window_size;
 extern int Rmax;
 
-extern double detector_coupling_time;
 extern double nonadiabatic_coupling;
 
 // define function here

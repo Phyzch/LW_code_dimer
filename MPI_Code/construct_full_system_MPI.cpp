@@ -22,6 +22,8 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
     double energy;
     // each process responsible to couple detector 1's state with detector 2's state to form state in x,y.
     int vsize_d1 = d.total_dmat_size[0]/num_proc;
+    int vsize_d2 = d.total_dmat_size[1]/num_proc;
+
     int begin_index_d1 = my_id * vsize_d1;
     int end_index_d1;
     if(my_id!=num_proc-1){
@@ -31,12 +33,25 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
         end_index_d1 = d.total_dmat_size[0];
     }
 
+    int initial_state_d1_global_index = vsize_d1 * d.initial_state_pc_id[0] + d.initial_state_index[0];
+    int initial_state_d2_global_index = vsize_d2 * d.initial_state_pc_id[1] + d.initial_state_index[1];
+
+    initial_dimer_state_pc_id = d.initial_state_pc_id[0]; // states are sort according to d1 state.
+
     // sstate ,dstate is index for matrix element in full matrix to record the corresponding index in system and detector.
     dstate = new vector <int> [s.electronic_state_num];
 
     for(j= begin_index_d1 ; j< end_index_d1;j++){ // index in monomer 1 (detector 1)
         for (k=0;k<d.total_dmat_size[1];k++) {  // index in monomer 2 (detector 2)
             for(i=0;i<s.tlmatsize;i++){
+
+                if( j == initial_state_d1_global_index and k== initial_state_d2_global_index and i==0 ){
+                    if (my_id != initial_dimer_state_pc_id){
+                        printf("wrong. dimer pc id should be equal to detector1 state id.");
+                        MPI_Abort(MPI_COMM_WORLD, -25);
+                    }
+                    initial_dimer_state_index = mat_index;
+                }
 
                 energy = s.tlmat[i] + dmat0[j] + dmat1[k]; // energy of electronic state + energy in two monomer.
                 sstate.push_back(i);
@@ -51,6 +66,9 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
             }
         }
     }
+
+    // communicate about initial dimer state index.  dimer_state_pc_id is the same in all processes.
+    MPI_Bcast(&initial_dimer_state_index, 1, MPI_INT, initial_dimer_state_pc_id, MPI_COMM_WORLD);
 
     // construct sstate_all, dstate_all; for future convenience.
     dstate_all = new vector<int> [s.electronic_state_num];
@@ -154,7 +172,6 @@ void full_system::shift_mat(){
             }
             output << endl;
         }
-        output << "We apply energy window here:  " << energy_window_size << endl;
     }
     delete [] hx;
     delete [] hy;

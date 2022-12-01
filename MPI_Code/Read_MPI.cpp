@@ -14,7 +14,7 @@ void full_system:: read_input_with_MPI(){
             log<< "THE INFILE FAILS TO OPEN!" << endl;
             MPI_Abort(MPI_COMM_WORLD, -2);  // Abort the process and return error code -2. (input file can't open)
         }
-        input >>  energy_window_size >> Rmax >> d.V_intra >> d.a_intra >> d.detector_energy_window_size >>  nonadiabatic_coupling;
+        input  >> Rmax >> d.V_intra >> d.a_intra >> d.detector_energy_window_size >>  nonadiabatic_coupling;
         // read time used for simulation.  delt: time step.  tmax: maximum time for simulation.   tprint: time step to print result.
         input >> delt >> tmax >> tprint;
         // check if input is valid
@@ -45,7 +45,6 @@ void full_system:: read_input_with_MPI(){
     }
     // Broadcast hyper parameter to all process.
     // function:  int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm comm)
-    MPI_Bcast(&energy_window_size,1, MPI_DOUBLE, 0 , MPI_COMM_WORLD);
     MPI_Bcast(&Rmax,1,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Bcast(&d.V_intra,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
     MPI_Bcast(&d.detector_energy_window_size,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
