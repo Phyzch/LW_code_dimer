@@ -11,7 +11,9 @@ int full_system::search_full_sys_matrix_given_sd_matrix(int s_state, int d1_stat
     // d_state: index for detector1
     // d_state: index for detector2
 
-    int x_index1; // index in full matrix.
+    // x_index is index in full_matrix, which is the result we return. if x_index = -1, this means the state is not found.
+
+    int x_index; // index in full matrix.
 
     vector <int> d1_mode;
     vector <int> d2_mode;
@@ -19,30 +21,37 @@ int full_system::search_full_sys_matrix_given_sd_matrix(int s_state, int d1_stat
     d1_mode = d.dv_all[0][d1_state];
     d2_mode = d.dv_all[1][d2_state];
 
+    int vsize_d1 = d.total_dmat_size[0]/num_proc;
+
+    // because full_system matrix are constructed with gaurantee d1_state is sorted. Therefore,
+    // we can use this attribute to find out in which proc the state locates.
     bool exist;
     int d_list_position;
     int xlist_position;
 
-    // search from d1_list
-    d_list_position = find_location_binarysearch_quotient_state(d1list, s_state, d2_mode, exist);
-    if( not exist ){
-        // this state does not exist
-        return -1;
+    // search from d2_list_all.
+    d_list_position = find_location_binarysearch_quotient_state(d2list_all, s_state, d1_mode, exist);
+    if(! exist){
+        x_index = -1;
+    }
+    else{
+        xlist_position = binary_search_dxindex(d2list_all[d_list_position].dxindex, d2_state, exist );
+        if(! exist){
+            x_index = -1;
+        }
+        else{
+            x_index = d2list_all[d_list_position].xindex[xlist_position];
+
+            // check if result is correct.
+            if ( (sstate_all[x_index]!= s_state) or (dstate_all[0][x_index]!= d1_state) or (dstate_all[1][x_index]!= d2_state ) ){
+                printf("search state index in full system is wrong.");
+                MPI_Abort(MPI_COMM_WORLD, -30);
+            }
+
+        }
     }
 
-    xlist_position = binary_search_dxindex(d1list[d_list_position].dxindex, d1_state, exist);
-    if (not exist){
-        return -1;
-    }
-
-    x_index1 = d1list[d_list_position].xindex[xlist_position];
-
-    if ( (sstate[x_index1]!= s_state) or (dstate[0][x_index1]!= d1_state) or (dstate[1][x_index1]!= d2_state ) ){
-        printf("search state index in full system is wrong.");
-        MPI_Abort(MPI_COMM_WORLD, -30);
-    }
-
-    return x_index1;
+    return x_index;
 }
 
 double compute_franck_condon_factor(double alpha, int m, int n){
@@ -217,13 +226,11 @@ void full_system:: compute_nonadiabatic_offdiagonal_matrix_full_system(vector < 
     // for each vib states in monomer, we find vib states coupled to them whose franck condon factor is larger than Franck_condon_factor_cutoff
     d.find_franck_condon_factor_for_monomer_states();
 
-    // now for each vib state in dimer system, (monomer1 + monomer2).
-    // we find states coupled to dimer vib states.
     for(i=0; i<matsize;i++){
         state_index_in_dimer = irow[i];
 
         state_s_index = sstate[i];
-        state_d1_index = dstate[0][i];
+        state_d1_index = dstate[0][i]; // global index for detector (monomer)
         state_d2_index = dstate[1][i];
 
         state_energy = s.tlmat[state_s_index] + dmat0[state_d1_index] + dmat1[state_d2_index];
@@ -244,8 +251,15 @@ void full_system:: compute_nonadiabatic_offdiagonal_matrix_full_system(vector < 
                 coupled_state_d2_index = d.nonadiabatic_coupled_d_state[1][state_d2_index][k];
 
                 include_off_diag_coupling_bool = false;
+
                 // coupled state index in full matrix (dimer)
+                // search full_system matrix index given electronic state and monomer's state.
                 coupled_state_index_in_dimer = search_full_sys_matrix_given_sd_matrix(coupled_state_s_index, coupled_state_d1_index, coupled_state_d2_index);
+
+                if(coupled_state_index_in_dimer == -1){
+                    // the state not found.
+                    continue;
+                }
 
                 franck_condon_factor_d1 = d.nonadiabatic_coupled_d_state_franck_condon[0][state_d1_index][j];
                 franck_condon_factor_d2 = d.nonadiabatic_coupled_d_state_franck_condon[1][state_d2_index][k];
@@ -266,7 +280,7 @@ void full_system:: compute_nonadiabatic_offdiagonal_matrix_full_system(vector < 
                 if (include_off_diag_coupling_bool){
                     // include this off-diagonal coupling.
                     nonadiabatic_off_mat.push_back(off_diagonal_matrix_ele);
-                    nonadiabatic_off_irow.push_back(irow[i]);
+                    nonadiabatic_off_irow.push_back(state_index_in_dimer);
                     nonadiabatic_off_icol.push_back(coupled_state_index_in_dimer);
                 }
 

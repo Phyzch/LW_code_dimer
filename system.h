@@ -147,6 +147,9 @@ private:
 	vector <int>sstate;
 	vector<int> * dstate;  // sstate[matsize], dstate[matsize].  index of system state and detector for that matrix element. (This could be replaced by function to save space)
 
+    vector<int> sstate_all;
+    vector<int> * dstate_all;
+
 	double total_energy;
 	double norm; // used to check normalization
     double total_norm;
@@ -154,6 +157,8 @@ private:
 
     vector <quotient_state> d1list;  // state in quotient Hilbert space for detector 1
     vector <quotient_state> d2list;  // state in quotient Hilbert space for detector 2
+
+    vector<quotient_state> d2list_all;
 
     vector <sys_quotient_state> slist;  // state in quotient Hilbert space for system.
 

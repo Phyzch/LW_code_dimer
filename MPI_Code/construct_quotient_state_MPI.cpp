@@ -12,12 +12,18 @@ void full_system::construct_quotient_state_all_MPI(){
 
     for(i=0;i<matsize;i++) {
         insert_quotient_state(d1list, sstate[i], d.dv_all[1][dstate[1][i]],  irow[i], dstate[0][i]);
-        // d2list is already sorted because each process are gauranteed to be sorted.
+        // d2list is already sorted because each process are gauranteed to be sorted individually.
         insert_quotient_state(d2list, sstate[i], d.dv_all[0][dstate[0][i]],  irow[i], dstate[1][i]);
     }
     //------------------------------------------------------------------
     // For d1list, it is marked by (detector2 state, system state). because each process only have a fraction of detector 1 state but all detector 2 state, the d1list constructed is incomplete and only contain part of detector 1 in dxindex.
     rearrange_d1list();
+
+    for(i=0;i<total_matsize; i++){
+        // we have to use dstate_all and sstate_all, as it corresponds to all full_system states instead of state in one process.
+        // d2list_all is used to search full matrix index. (each process can search by themselves without communicating with each other.)
+        insert_quotient_state(d2list_all, sstate_all[i], d.dv_all[0][ dstate_all[0][i] ], irow[i], dstate_all[1][i]);
+    }
 
     for(i=0;i<matsize;i++){
         //---------------------------------------------------------------------------
@@ -260,7 +266,7 @@ vector<quotient_state> full_system::sort_d1list(vector<vector<quotient_state>> &
             old_list_ptr = &(* new_list_ptr);
             new_list_ptr = & (*list_ptr_3);
 
-            merge_list_size= (merge_list_size+1)/2;  // odd number of merge_list will left the final one.
+            merge_list_size= (merge_list_size+1)/2;  // odd number of merge_list will left as the final one.
         }
         sorted_d1list =(*old_list_ptr)[0];
     }

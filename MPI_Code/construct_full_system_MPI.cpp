@@ -52,6 +52,21 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
         }
     }
 
+    // construct sstate_all, dstate_all; for future convenience.
+    dstate_all = new vector<int> [s.electronic_state_num];
+    for(j= 0 ; j< d.total_dmat_size[0];j++){ // index in monomer 1 (detector 1)
+        for (k=0;k<d.total_dmat_size[1];k++) {  // index in monomer 2 (detector 2)
+            for(i=0;i<s.tlmatsize;i++){
+
+                sstate_all.push_back(i);
+                dstate_all[0].push_back(j); // dstate record detector global index
+                dstate_all[1].push_back(k);
+
+            }
+        }
+    }
+
+
     // you have to re-assign the irow, icol in each process for global matrix.:
     matsize= mat.size();
     matsize_each_process= new int [num_proc];
