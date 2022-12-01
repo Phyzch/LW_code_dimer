@@ -67,6 +67,9 @@ public:
 	vector<double> * dmat; // matrix
 	double *proptime; // we set proptime for two different mode to be the same
 
+    // for EV coupling
+    double ** electron_phonon_coupling;
+    double **** franck_condon_factor_table;
 
     int ** remoteVecCount,  ** remoteVecPtr,  **  remoteVecIndex;
     int ** tosendVecCount,  **tosendVecPtr,  ** tosendVecIndex;
@@ -117,6 +120,9 @@ public:
     void Broadcast_dv_all();
 
     void compute_important_state_index();
+
+    // for nonadiabatic franck condon factor
+    void compute_franck_condon_factor_table();
 
 };
 
@@ -227,8 +233,12 @@ public:
     void gather_x_y(double * x_all, double * y_all); // gather x,y to save the state or load the state to file.
     void scatter_x_y(double * x_all, double * y_all); // scatter x_all, y_all to x,y.
 
-
     void Normalize_wave_function();
+
+    // search x_index using all index in electronic dof, index in monomer1 and index in monomer2
+    int search_full_sys_matrix_given_sd_matrix(int s_state, int d1_state, int d2_state); // find index in full matrix given index in electronic_state, in monomer1, and in monomer2.
+
+
 };
 
 

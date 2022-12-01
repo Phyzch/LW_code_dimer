@@ -12,8 +12,6 @@ void full_system::compute_offdiagonal_part_MPI(){
     vector<int> d_off_icol;
     compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(d_off_mat,d_off_irow,d_off_icol);
 
-
-
     // we have to rearrange off-diagonal_matrix in full_system to make sure irow is in  corresponding process.
     //Also we have to compute offnum, matnum
     combine_offdiagonal_term(d_off_mat,d_off_irow,d_off_icol);
@@ -62,7 +60,6 @@ void full_system:: combine_offdiagonal_term(
 
 
 }
-
 
 void full_system:: rearrange_off_diagonal_term(vector < double > & sys_detector_mat,vector  <int> & sys_detector_irow,
                                                vector<int> & sys_detector_icol){

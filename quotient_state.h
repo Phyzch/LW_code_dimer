@@ -51,6 +51,8 @@ void insert_quotient_state(vector <quotient_state> & list, int sys_state, vector
 void save_detector_quotient_state_data_for2( const vector <quotient_state> & d1list, const vector <quotient_state> & d2list, string path);
 void load_detector_quotient_state_data_for2( vector<quotient_state> & d1list, vector <quotient_state> & d2list, string path);
 
+
+
 void insert_sys_quotient_state(vector <sys_quotient_state> & list, const vector<int> vmode1_0, const vector<int> vmode2_0, int mod_dim, int xindex, int sysxindex, int dxindex1, int dxindex2);
 vector<sys_quotient_state> merge_sort_list(vector<sys_quotient_state> & list);
 void save_sys_quotient_state_data(const vector<sys_quotient_state> & list, string path);
@@ -59,5 +61,6 @@ void load_sys_quotient_state_data( vector <sys_quotient_state> &list, string pat
 
 int find_position_for_insert_binary(const vector<vector<int>> & vmode, const vector<int> & ndetector, bool & exist);  // write in compute_matrix_energy_window.cpp
 int find_location_binarysearch_sys_quotient_state(const vector<sys_quotient_state> & list, vector<int> & vmode1, const vector  <int> & vmode2, bool & exist);  // write in Compute_sys_reduced_density.cpp
+int find_location_binarysearch_quotient_state(const vector<quotient_state> & list, int sys_state, const vector <int> & vmode, bool & exist);
 
 #endif //QUANTUM_MEASUREMENT_QUOTIENT_STATE_H

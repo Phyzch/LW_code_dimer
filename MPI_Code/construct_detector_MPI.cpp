@@ -22,6 +22,8 @@ void detector::allocate_space() {
 
     mfreq = new double *[electronic_state_num];  // mfreq: frequency of each mode here.
 
+    electron_phonon_coupling = new double * [electronic_state_num];
+
     aij = new double * [electronic_state_num];
 
     dmat = new vector <double> [electronic_state_num];
@@ -61,6 +63,7 @@ void detector:: allocate_space_single_detector(int detector_index){
     int i= detector_index;
     nmax[i] = new int[nmodes[i]];
     mfreq[i] = new double[nmodes[i]];
+    electron_phonon_coupling[i] = new double [nmodes[i]];
     aij[i] = new double[nmodes[i]];
 }
 
@@ -81,7 +84,7 @@ void detector::read_MPI(ifstream & input, ofstream & output, int electronic_stat
             input >> nmodes[i] >> proptime[i];
             allocate_space_single_detector(i);
             for (j = 0; j < nmodes[i]; j++) {
-                input >> mfreq[i][j] >> nmax[i][j]  ;
+                input >> mfreq[i][j] >> nmax[i][j]  >> electron_phonon_coupling[i][j] ;
             }
         }
 
@@ -119,6 +122,7 @@ void detector::read_MPI(ifstream & input, ofstream & output, int electronic_stat
 
     for(i=0; i < electronic_state_num; i++){
         MPI_Bcast(&mfreq[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
+        MPI_Bcast(&electron_phonon_coupling[i][0] ,nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
         MPI_Bcast(&nmax[i][0],nmodes[i],MPI_INT,0,MPI_COMM_WORLD);
         MPI_Bcast(&aij[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
     }

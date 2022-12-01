@@ -19,7 +19,6 @@ detector::~detector(){
     delete [] doffnum;
     delete [] deln;
     delete [] nbar;
-    delete [] mfreq;
     delete [] aij;
     delete [] dirow;
     delete [] dicol;
@@ -40,7 +39,12 @@ detector::~detector(){
         delete [] xd_all[i];
         delete [] yd_all[i];
 
+        delete [] mfreq[i];
+        delete [] electron_phonon_coupling[i];
     }
+
+    delete [] mfreq;
+    delete [] electron_phonon_coupling;
     delete [] dmatsize_each_process;
     delete [] doffnum_each_process;
     delete [] dmatnum_each_process;
