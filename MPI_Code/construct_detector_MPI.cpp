@@ -78,7 +78,7 @@ void detector::read_MPI(ifstream & input, ofstream & output, int electronic_stat
     if (my_id==0){
         // maxdis: maximum allowed distance.
         // cutoff: cutoff strength for intra-detector coupling strength.  cutoff2: cutoff strength for inter-detector coupling.
-        input >>  maxdis >> cutoff;
+        input >>  maxdis >> cutoff >> Franck_condon_factor_cutoff;
         output << "Detector  " << maxdis << " " << cutoff <<  endl;
         for (i = 0; i < electronic_state_num; i++) {
             input >> nmodes[i] >> proptime[i];
@@ -119,6 +119,7 @@ void detector::read_MPI(ifstream & input, ofstream & output, int electronic_stat
 
     MPI_Bcast(&maxdis,1,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Bcast(&cutoff,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Bcast(&Franck_condon_factor_cutoff, 1, MPI_DOUBLE, 0,  MPI_COMM_WORLD);
 
     for(i=0; i < electronic_state_num; i++){
         MPI_Bcast(&mfreq[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);

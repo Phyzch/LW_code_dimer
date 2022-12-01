@@ -29,6 +29,7 @@ extern double energy_window_size;
 extern int Rmax;
 
 extern double detector_coupling_time;
+extern double nonadiabatic_coupling;
 
 // define function here
 void convert_dv(const vector<vector<int>> & vec_2d, vector <int>  & vec_1d , vector <int> & displacement , vector <int> & element_size );

@@ -136,3 +136,46 @@ void detector::compute_franck_condon_factor_table() {
     }
 
 }
+
+void detector::find_franck_condon_factor_for_monomer_states(){
+    int i, j, k, l, m;
+    double franck_condon_factor_prod;
+    double franck_condon_factor;
+
+    int state1_mode_qn, state2_mode_qn;
+
+    // brute force method to find all d states
+    for(m=0; m < electronic_state_num ; m++){
+        vector<vector<int>> nonadiabatic_coupled_state_each_monomer;
+        vector<vector<double>> nonadiabatic_coupled_state_each_monomer_fc;
+
+        for(i=0; i< total_dmat_size[m] ; i++ ){
+            vector<int> nonadiabatic_coupled_state_single_state;
+            vector<double> nonadiabatic_coupled_state_single_state_fc;
+
+            for( j=0; j<total_dmat_size[m]; j++ ){
+                franck_condon_factor_prod = 1;
+
+                for(k=0; k<nmodes[m]; k++){
+                    state1_mode_qn = dv_all[m][i][k];
+                    state2_mode_qn = dv_all[m][j][k];
+
+                    franck_condon_factor = franck_condon_factor_table[m][k][state1_mode_qn][state2_mode_qn];
+                    franck_condon_factor_prod = franck_condon_factor_prod * franck_condon_factor;
+                }
+
+                if( franck_condon_factor_prod > Franck_condon_factor_cutoff ){
+                    nonadiabatic_coupled_state_single_state.push_back(j);
+                    nonadiabatic_coupled_state_single_state_fc.push_back(franck_condon_factor_prod);
+                }
+
+            }
+            nonadiabatic_coupled_state_each_monomer.push_back(nonadiabatic_coupled_state_single_state);
+            nonadiabatic_coupled_state_each_monomer_fc.push_back(nonadiabatic_coupled_state_single_state_fc);
+        }
+        nonadiabatic_coupled_d_state.push_back(nonadiabatic_coupled_state_each_monomer);
+        nonadiabatic_coupled_d_state_franck_condon.push_back(nonadiabatic_coupled_state_each_monomer_fc);
+
+    }
+
+}

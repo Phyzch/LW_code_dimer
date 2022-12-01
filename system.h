@@ -86,6 +86,9 @@ public:
     //kelvin : detector temperature in kelvin
 	int   maxdis;
 	double cutoff;
+    double Franck_condon_factor_cutoff;
+    vector<vector<vector<int>>> nonadiabatic_coupled_d_state; // state nonadiabatically coupled to given d state.
+    vector<vector<vector<double>>> nonadiabatic_coupled_d_state_franck_condon; // franck_condon factor for nonadiabtatically coupled state
 
 	double V_intra, a_intra; // intra detector coupling strength.  a_intra = coupling strength for mfreq = 50.
     double detector_energy_window_size;
@@ -123,6 +126,7 @@ public:
 
     // for nonadiabatic franck condon factor
     void compute_franck_condon_factor_table();
+    void find_franck_condon_factor_for_monomer_states();
 
 };
 
