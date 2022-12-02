@@ -5,7 +5,7 @@ using namespace std;
 //they are functions do most of works and call other functions here.
 
 // initialization of parameters and do some pre-coupling set up
-full_system::full_system(string path1) {
+full_system::full_system(string path1 , vector<vector<int>> & initial_state_quantum_number) {
 
 	path = path1;
     d.path = path;
@@ -14,7 +14,7 @@ full_system::full_system(string path1) {
 
 	s.read_MPI(input, output, log);
 	d.read_MPI(input, output, s.electronic_state_num, path);
-    d.construct_initial_state_MPI(input, output);
+    d.construct_initial_state_MPI( initial_state_quantum_number);
 
     compute_detector_matrix_size_MPI();
 
@@ -29,7 +29,10 @@ full_system::full_system(string path1) {
 }
 
 // Doing Quantum Simulation with SUR algorithm, parallelized version.
-void full_system::Quantum_evolution() {
+void full_system::Quantum_evolution( double & state_energy_for_record, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list ) {
+    // state_mode_list : record vibrational qn for initial state
+    // time_list: record time.  survival probability list: record survival probability.  electronic_survival_probability_list : record electronic survival probability
+
     // ---------------- prepare variable for prepare evolution and call prepare_evolution ------------------------------
     int i, j, k,m;
     int steps, psteps;
@@ -41,6 +44,9 @@ void full_system::Quantum_evolution() {
         initial_state_energy = mat[initial_dimer_state_index];
     }
     MPI_Bcast(&initial_state_energy, 1, MPI_DOUBLE, initial_dimer_state_pc_id, MPI_COMM_WORLD);
+
+    // record the state energy
+    state_energy_for_record = initial_state_energy;
 
     // -----------------------------------------------------------------------------------
     // convert all matrix elements for ps-wavenumber units
@@ -76,41 +82,6 @@ void full_system::Quantum_evolution() {
     vector<double> electronic_state_label_array;
     generate_label_for_electronic_survival_prob_calculation(electronic_state_label_array);
 
-    // vibrational survival prob
-    ofstream survival_prob_out;
-    if(my_id == 0){
-        survival_prob_out.open(path + "survival_prob.txt");
-        // output energy
-
-        survival_prob_out << initial_state_energy << " "; // energy for state
-        survival_prob_out << endl;
-
-        // output mode quanta
-        for(m=0;m<d.electronic_state_num;m++){
-            for(j=0;j<d.nmodes[m];j++){
-                survival_prob_out << d.initial_detector_state[m][j]<<"  ";
-            }
-            survival_prob_out << endl;
-        }
-    }
-
-    // electronic survival probability
-    ofstream electronic_survival_prob_out;
-    if(my_id == 0){
-        electronic_survival_prob_out.open(path + "electronic_survival_prob.txt");
-        // output energy
-
-        electronic_survival_prob_out << initial_state_energy << endl;
-
-        // output mode quanta
-        for(m=0;m<d.electronic_state_num;m++){
-            for(j=0;j<d.nmodes[m];j++){
-                electronic_survival_prob_out << d.initial_detector_state[m][j]<<"  ";
-            }
-            electronic_survival_prob_out << endl;
-        }
-    }
-
 
 	for (k = initial_step; k <= steps; k++) {
 
@@ -120,16 +91,17 @@ void full_system::Quantum_evolution() {
 		    Normalize_wave_function();
 		    update_x_y();
 
+            // record time
+            time_list.push_back(t);
+
+
             // ---------- code for computing survival probability --------
             if(my_id == initial_dimer_state_pc_id){
                 survival_prob = pow(x[initial_dimer_state_index],2) + pow(y[initial_dimer_state_index] , 2) ;
             }
             MPI_Bcast(&survival_prob,1, MPI_DOUBLE, initial_dimer_state_pc_id, MPI_COMM_WORLD);
-            if(my_id == 0){
-                // output survival prob
-                survival_prob_out << t << endl;
-                survival_prob_out << survival_prob << endl;
-            }
+            // record survival probability
+            survival_probability_list.push_back(survival_prob);
             // --------- end for code computing survival probability ------
 
             // code for computing electronic survival probability
@@ -138,11 +110,7 @@ void full_system::Quantum_evolution() {
                 electronic_survival_prob = electronic_survival_prob + ( pow(x[i],2) + pow(y[i], 2)) * electronic_state_label_array[i];
             }
             MPI_Allreduce(&electronic_survival_prob, &electronic_survival_prob_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-            if(my_id == 0){
-                // output electronic survival probability
-                electronic_survival_prob_out << t << endl;
-                electronic_survival_prob_out << electronic_survival_prob_sum << endl;
-            }
+            electronic_survival_probability_list.push_back(electronic_survival_prob);
 
             //  end for code computing electronic survival probability.
         }
@@ -168,6 +136,7 @@ void full_system::Quantum_evolution() {
 	log.close();
 	output.close();
 	resource_output.close();
-    survival_prob_out.close();
-    electronic_survival_prob_out.close();
+
+
+
 }

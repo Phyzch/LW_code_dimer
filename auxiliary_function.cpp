@@ -26,13 +26,25 @@ void full_system::dimension_check() {
 full_system::~full_system(){
     // release the space allocated by new. destructor.
     int i;
+    delete [] matsize_each_process;
+    delete [] mat_offnum_each_process;
+    delete [] matnum_each_process;
+    delete [] matsize_offset_each_process;
+    delete [] matnum_offset_each_process;
+
     delete [] dstate;
+    delete [] dstate_all;
+
     delete [] remoteVecCount;
     delete [] remoteVecPtr;
     delete [] remoteVecIndex;
     delete [] tosendVecCount;
     delete [] tosendVecPtr;
     delete [] tosendVecIndex;
+    delete [] recv_x;
+    delete [] recv_y;
+    delete [] send_x;
+    delete [] send_y;
 
 }
 

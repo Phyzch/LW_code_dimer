@@ -10,7 +10,6 @@ void Broadcast_dmat_vmode(int stlnum, vector<double> & dmat0,  vector<double> & 
 // initialize parameters for detector and allocate space there.
 void detector::allocate_space() {
     int i, j;
-    dmatdim = detdim*detdim / fillfrac;
 
     nmodes = new int[electronic_state_num];  //  number of modes in each detector
 
@@ -495,7 +494,7 @@ void detector::initialize_detector_state_MPI(ofstream & log) {
 
 }
 
-void detector::construct_initial_state_MPI(ifstream & input, ofstream & output){
+void detector::construct_initial_state_MPI( vector<vector<int>> & initial_state_quantum_number){
     // MPI version of construct initial state
     /*
      *  Initial detector state: detector state populated at beginning of simulation
@@ -512,7 +511,7 @@ void detector::construct_initial_state_MPI(ifstream & input, ofstream & output){
     if(my_id==0){
         for(m=0; m < electronic_state_num; m++) {
             for (i = 0; i < nmodes[m]; i++) {
-                input >> initial_detector_state[m][i];
+                initial_detector_state[m][i] = initial_state_quantum_number[m][i];
             }
         }
     }

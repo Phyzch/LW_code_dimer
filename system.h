@@ -29,9 +29,6 @@ public:
 
 class detector {
 private:
-    const int fillfrac = 10;
-    const static int detdim =80;  // maximum n*n dimension of our detector matrix
-    int dmatdim; // detector matrix size
     int electronic_state_num;
     string path;
 
@@ -116,7 +113,7 @@ public:
     // MPI version of SUR for one detector for each timestep.
     void update_dx_dy(int detector_index);
     void SUR_onestep_MPI( int detector_index, double cf);
-    void construct_initial_state_MPI(ifstream & input, ofstream & output);
+    void construct_initial_state_MPI(vector<vector<int>> & initial_state_quantum_num);
     void initialize_detector_state_MPI(ofstream & log);
 
     // used to broadcast dv_all , vmode0, vmode1 , dmat0, dmat1
@@ -133,7 +130,6 @@ public:
 class full_system {
 	// detector+ system
 private:
-	int matdim;  // matdim is maximum size of full matrix
 	int matnum, offnum, matsize; // matnum is total matrix element number, it should be smaller than matdim.
 	                                // in our program, usually we set matdim=matnum and use these variable interchangably.
 								 //offnum: off diagonal matrix element number. matsize: matrix size for full matrix (number of diagonal element)
@@ -201,10 +197,10 @@ public:
 
 	string path;
 
-	full_system(string path1);
+	full_system(string path1 , vector<vector<int>> & initial_state_quantum_number);
 	~full_system();
 	void dimension_check();
-	void Quantum_evolution();;
+	void Quantum_evolution( double & state_energy, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list );;
 
     // MPI version of code:
     void read_input_with_MPI();

@@ -11,21 +11,17 @@ detector::detector(){
 }
 
 detector::~detector(){
-    int i;
-    delete [] nmodes;
-    delete [] nmax;
+    int i,m,j,k;
+    int max_qn;
 
-    delete [] dmatnum;
-    delete [] doffnum;
     delete [] deln;
     delete [] nbar;
-    delete [] aij;
     delete [] dirow;
     delete [] dicol;
+    delete [] dv;
     delete [] xd;
     delete [] yd;
     delete [] proptime;
-    delete [] initial_detector_state;
     delete [] initial_state_energy;
 
     for(i=0; i < electronic_state_num; i++){
@@ -41,8 +37,15 @@ detector::~detector(){
 
         delete [] mfreq[i];
         delete [] electron_phonon_coupling[i];
-    }
+        delete [] initial_detector_state[i];
+        delete [] aij[i];
 
+    }
+    delete [] initial_state_pc_id;
+    delete [] initial_state_index;
+    delete [] initial_detector_state;
+
+    delete [] aij;
     delete [] mfreq;
     delete [] electron_phonon_coupling;
     delete [] dmatsize_each_process;
@@ -55,4 +58,32 @@ detector::~detector(){
 
     delete [] xd_all;
     delete [] yd_all;
+
+    // ------ delete franck condon factor table
+    for(i=0;i<nmodes[0];i++){
+        if (max_qn < nmax[0][i]) {
+            max_qn = nmax[0][i];
+        }
+    }
+    max_qn = max_qn + 1;
+    for(m=0; m < electronic_state_num;m++){
+        for(j=0;j<nmodes[m];j++){
+            for(k=0;k<max_qn;k++){
+                delete [] franck_condon_factor_table[m][j][k];
+            }
+            delete [] franck_condon_factor_table[m][j];
+        }
+        delete [] franck_condon_factor_table[m];
+    }
+    delete [] franck_condon_factor_table;
+    // -----------------
+
+    for(m=0;m<electronic_state_num;m++){
+        delete[] nmax[i];
+    }
+    delete [] nmax;
+    delete [] dmatsize;
+    delete [] dmatnum;
+    delete [] doffnum;
+    delete [] nmodes;
 }
