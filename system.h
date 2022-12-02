@@ -255,6 +255,8 @@ public:
     // search x_index using all index in electronic dof, index in monomer1 and index in monomer2
     int search_full_sys_matrix_given_sd_matrix(int s_state, int d1_state, int d2_state); // find index in full matrix given index in electronic_state, in monomer1, and in monomer2.
 
+    // for computing electronic survival probability
+    void generate_label_for_electronic_survival_prob_calculation(vector<double> & electronic_state_label_array);
 
 };
 

@@ -7,16 +7,19 @@ using namespace std;
 double inter_detector_coupling_scaling=10;
 
 void full_system::compute_offdiagonal_part_MPI(){
+    int dmat_off_num, dmat_off_num_sum;
+    int nonadiabatic_off_num, nonadiabatic_off_num_sum;
+
     vector<double> d_off_mat;
     vector<int> d_off_irow;
     vector<int> d_off_icol;
     compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(d_off_mat,d_off_irow,d_off_icol);
 
+
     vector<double> nonadiabatic_off_mat;
     vector<int> nonadiabatic_off_irow;
     vector<int> nonadiabatic_off_icol;
     compute_nonadiabatic_offdiagonal_matrix_full_system(nonadiabatic_off_mat, nonadiabatic_off_irow, nonadiabatic_off_icol);
-
 
     // we have to rearrange off-diagonal_matrix in full_system to make sure irow is in  corresponding process.
     //Also we have to compute offnum, matnum
@@ -39,6 +42,18 @@ void full_system::compute_offdiagonal_part_MPI(){
 
     MPI_Allreduce(&matnum,&total_matnum,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
     MPI_Allreduce(&offnum,&total_offnum,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+
+    dmat_off_num = d_off_mat.size();
+    MPI_Allreduce(&dmat_off_num, &dmat_off_num_sum, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    nonadiabatic_off_num = nonadiabatic_off_mat.size();
+    MPI_Allreduce(&nonadiabatic_off_num, &nonadiabatic_off_num_sum, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    if(my_id == 0){
+        output << "anharmonic coupling number in dimer : " << dmat_off_num_sum << endl;
+        output << "nonadiabatic coupling number in dimer: " << nonadiabatic_off_num_sum << endl;
+    }
+
 
 }
 

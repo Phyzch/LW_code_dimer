@@ -70,6 +70,11 @@ void full_system::Quantum_evolution() {
 
     // for computing survival probability
     double survival_prob = 0;
+    double electronic_survival_prob;
+    double electronic_survival_prob_sum;
+
+    vector<double> electronic_state_label_array;
+    generate_label_for_electronic_survival_prob_calculation(electronic_state_label_array);
 
     // vibrational survival prob
     ofstream survival_prob_out;
@@ -89,6 +94,23 @@ void full_system::Quantum_evolution() {
         }
     }
 
+    // electronic survival probability
+    ofstream electronic_survival_prob_out;
+    if(my_id == 0){
+        electronic_survival_prob_out.open(path + "electronic_survival_prob.txt");
+        // output energy
+
+        electronic_survival_prob_out << initial_state_energy << endl;
+
+        // output mode quanta
+        for(m=0;m<d.electronic_state_num;m++){
+            for(j=0;j<d.nmodes[m];j++){
+                electronic_survival_prob_out << d.initial_detector_state[m][j]<<"  ";
+            }
+            electronic_survival_prob_out << endl;
+        }
+    }
+
 
 	for (k = initial_step; k <= steps; k++) {
 
@@ -97,9 +119,6 @@ void full_system::Quantum_evolution() {
 		    // Normalize wave function.
 		    Normalize_wave_function();
 		    update_x_y();
-			if(my_id==0) {
-                output << "Steps: " << k << endl;
-            }
 
             // ---------- code for computing survival probability --------
             if(my_id == initial_dimer_state_pc_id){
@@ -113,6 +132,19 @@ void full_system::Quantum_evolution() {
             }
             // --------- end for code computing survival probability ------
 
+            // code for computing electronic survival probability
+            electronic_survival_prob = 0;
+            for(i=0;i<matsize;i++){
+                electronic_survival_prob = electronic_survival_prob + ( pow(x[i],2) + pow(y[i], 2)) * electronic_state_label_array[i];
+            }
+            MPI_Allreduce(&electronic_survival_prob, &electronic_survival_prob_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            if(my_id == 0){
+                // output electronic survival probability
+                electronic_survival_prob_out << t << endl;
+                electronic_survival_prob_out << electronic_survival_prob_sum << endl;
+            }
+
+            //  end for code computing electronic survival probability.
         }
 
         evolve_wave_func_one_step();
@@ -137,4 +169,5 @@ void full_system::Quantum_evolution() {
 	output.close();
 	resource_output.close();
     survival_prob_out.close();
+    electronic_survival_prob_out.close();
 }

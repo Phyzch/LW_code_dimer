@@ -58,6 +58,22 @@ void full_system:: etot_MPI(double * hx, double * hy){
     total_energy= total_energy/ total_norm;
 }
 
+void full_system :: generate_label_for_electronic_survival_prob_calculation(vector<double> & electronic_state_label_array){
+    // for states with electronic index = 0, we set electronic state label = 1.
+    // for states with electronic index = 1, we set electronic state label = 0.
+    // therefore we can compute electronic state survival probability.
+    int i,j, k;
+    double electronic_state_label;
+    for(i=0;i<matsize;i++){
+        if(sstate[i] == 0){
+            electronic_state_label = 1;
+        }
+        else{
+            electronic_state_label = 0;
+        }
+        electronic_state_label_array.push_back(electronic_state_label);
+    }
 
+}
 
 

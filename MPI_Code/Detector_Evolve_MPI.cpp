@@ -272,6 +272,7 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
         position=find_position_for_insert_binary(d.dv[m],vec_special_state,exist);
         MPI_Allgather(&exist,1,MPI_C_BOOL,&exist_bool_for_pc[0],1,MPI_C_BOOL,MPI_COMM_WORLD);
         special_state_pc_id [m] = -1;
+
         for(i=0;i<num_proc;i++){
             if(exist_bool_for_pc[i]){
                 special_state_pc_id[m] = i;

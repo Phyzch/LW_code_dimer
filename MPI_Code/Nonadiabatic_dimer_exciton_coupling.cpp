@@ -155,6 +155,8 @@ void detector::find_franck_condon_factor_for_monomer_states(){
     int i, j, k, l, m;
     double franck_condon_factor_prod;
     double franck_condon_factor;
+    double energy_state_i, energy_state_j;
+    double energy_difference;
 
     int state1_mode_qn, state2_mode_qn;
 
@@ -167,6 +169,11 @@ void detector::find_franck_condon_factor_for_monomer_states(){
             vector<int> nonadiabatic_coupled_state_single_state;
             vector<double> nonadiabatic_coupled_state_single_state_fc;
 
+            energy_state_i = 0;
+            for(k=0;k<nmodes[m];k++){
+                energy_state_i = energy_state_i + dv_all[m][i][k] * mfreq[m][k];
+            }
+
             for( j=0; j<total_dmat_size[m]; j++ ){
                 franck_condon_factor_prod = 1;
 
@@ -178,7 +185,14 @@ void detector::find_franck_condon_factor_for_monomer_states(){
                     franck_condon_factor_prod = franck_condon_factor_prod * franck_condon_factor;
                 }
 
-                if( franck_condon_factor_prod > Franck_condon_factor_cutoff ){
+                energy_state_j = 0;
+                for(k=0;k<nmodes[m];k++){
+                    energy_state_j = energy_state_j + dv_all[m][j][k] * mfreq[m][k];
+                }
+
+                energy_difference = abs(energy_state_j - energy_state_i);
+
+                if( abs(franck_condon_factor_prod) > Franck_condon_factor_cutoff or abs(franck_condon_factor_prod) > energy_difference * cutoff / nonadiabatic_coupling ){
                     nonadiabatic_coupled_state_single_state.push_back(j);
                     nonadiabatic_coupled_state_single_state_fc.push_back(franck_condon_factor_prod);
                 }

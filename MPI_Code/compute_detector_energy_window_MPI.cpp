@@ -109,7 +109,6 @@ void full_system:: compute_detector_matrix_size_MPI( ){
 
         int state_space_distance;
 
-        double initial_state_energy = min(d.initial_state_energy[0], d.initial_state_energy[1]);
 
         ndetector0[0] = -1; // this is for:  when we go into code: ndetector0[i]= ndetector0[i]+1, our first state is |000000>
         while (1) {
@@ -150,8 +149,8 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             }
 
             // criteria for energy window around bright_state and lower bright state for detector 0
-            if ((detector0_energy > initial_state_energy - d.detector_energy_window_size and
-                 detector0_energy < initial_state_energy + d.detector_energy_window_size)
+            if ((detector0_energy > d.initial_state_energy[0] - d.detector_energy_window_size and
+                 detector0_energy < d.initial_state_energy[0] + d.detector_energy_window_size)
                     )
                 ;
             else {
@@ -217,9 +216,9 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             }
 
             // criteria for energy window around bright_state and lower bright state for detector 1
-            if ((detector1_energy > initial_state_energy -
+            if ((detector1_energy > d.initial_state_energy[1] -
                                     d.detector_energy_window_size and
-                 detector1_energy < initial_state_energy +
+                 detector1_energy < d.initial_state_energy[1] +
                                     d.detector_energy_window_size )
                     )
             {  // criteria here means we only consider detector state whose energy is within small energy window
