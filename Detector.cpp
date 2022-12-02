@@ -59,27 +59,8 @@ detector::~detector(){
     delete [] xd_all;
     delete [] yd_all;
 
-    // ------ delete franck condon factor table
-    for(i=0;i<nmodes[0];i++){
-        if (max_qn < nmax[0][i]) {
-            max_qn = nmax[0][i];
-        }
-    }
-    max_qn = max_qn + 1;
-    for(m=0; m < electronic_state_num;m++){
-        for(j=0;j<nmodes[m];j++){
-            for(k=0;k<max_qn;k++){
-                delete [] franck_condon_factor_table[m][j][k];
-            }
-            delete [] franck_condon_factor_table[m][j];
-        }
-        delete [] franck_condon_factor_table[m];
-    }
-    delete [] franck_condon_factor_table;
-    // -----------------
-
     for(m=0;m<electronic_state_num;m++){
-        delete[] nmax[i];
+        delete[] nmax[m];
     }
     delete [] nmax;
     delete [] dmatsize;

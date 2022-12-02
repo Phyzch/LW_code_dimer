@@ -17,13 +17,14 @@ void read_state_quantum_number_list(string file_path, vector<vector<vector<int>>
 
 int main(int argc,char * argv []) {
     srand(time(0));
-    string path = "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/BChl try/";
+    string path = "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/batch_simulation/try/";
 
 
     string s;
     string s1;
-    int i;
+    int i,m,j;
     int state_num;
+    int mode_num;
 
     // MPI Command
     MPI_Init(&argc, &argv);
@@ -35,12 +36,16 @@ int main(int argc,char * argv []) {
 
     read_state_quantum_number_list(path, state_quantum_number_list);
     state_num = state_quantum_number_list.size();
+    mode_num = state_quantum_number_list[0][0].size();
 
     vector<double> state_energy_list;
     vector<vector<double>> time_list_all_states;
     vector<vector<double>> survival_prob_list_all_states;
     vector<vector<double>> electronic_survival_prob_list_all_states;
 
+    if(my_id == 0){
+        cout << "total state num for simulation : " << state_num << endl;
+    }
     for(i=0; i < state_num; i++){
 
         { // the parenthese here let destructor called after we use this instance.
@@ -58,6 +63,17 @@ int main(int argc,char * argv []) {
             time_list_all_states.push_back(time_list);
             survival_prob_list_all_states.push_back(survival_prob_list);
             electronic_survival_prob_list_all_states.push_back(electronic_survival_prob_list);
+        }
+
+        if(my_id == 0){
+            cout << "finish state num " << i << "   quantum number: " ;
+            for(m=0;m<2;m++){
+                for(j=0;j<mode_num;j++){
+                    cout << state_quantum_number[m][j] << " ";
+                }
+                cout << "       " ;
+            }
+            cout << endl;
         }
 
     }
@@ -83,8 +99,9 @@ void read_state_quantum_number_list(string file_path, vector<vector<vector<int>>
     if(! state_input.is_open() ){
         if(my_id == 0){
             cout<< "THE INPUT STATE FILE FAILS TO OPEN!" << endl;
+            MPI_Abort(MPI_COMM_WORLD, -35);
         }
-        MPI_Abort(MPI_COMM_WORLD, -35);
+
     }
 
     state_input >> state_num >> mode_num_each_monomer;
