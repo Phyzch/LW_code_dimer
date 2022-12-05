@@ -110,7 +110,7 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
                 electronic_survival_prob = electronic_survival_prob + ( pow(x[i],2) + pow(y[i], 2)) * electronic_state_label_array[i];
             }
             MPI_Allreduce(&electronic_survival_prob, &electronic_survival_prob_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-            electronic_survival_probability_list.push_back(electronic_survival_prob);
+            electronic_survival_probability_list.push_back(electronic_survival_prob_sum);
 
             //  end for code computing electronic survival probability.
         }
