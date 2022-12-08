@@ -284,11 +284,16 @@ void full_system:: compute_nonadiabatic_offdiagonal_matrix_full_system(vector < 
 
                 state_energy_difference = abs(state_energy - coupled_state_energy);
 
-                if (state_energy_difference == 0){
-                    include_off_diag_coupling_bool = true;
+                if (abs(off_diagonal_matrix_ele) < pow(10,-6) ){
+                    ;
                 }
-                else if( abs(off_diagonal_matrix_ele / state_energy_difference) > d.cutoff ){
-                    include_off_diag_coupling_bool = true;
+                else{
+                    if (state_energy_difference == 0){
+                        include_off_diag_coupling_bool = true;
+                    }
+                    else if( abs(off_diagonal_matrix_ele / state_energy_difference) > d.cutoff ){
+                        include_off_diag_coupling_bool = true;
+                    }
                 }
 
                 if (include_off_diag_coupling_bool){
