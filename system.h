@@ -47,10 +47,13 @@ public:
 	int ** dmatsize_each_process;
 	int ** doffnum_each_process;
 	int ** dmatnum_each_process;  // record detector matrix element number in each process.
+    int ** dmatsize_offset_each_process;
 	int ** dmat_offset_each_process; // record local first detector matrix's index in global matrix.
 
 	double ** total_dmat;
 	int ** total_dirow, ** total_dicol; // dirow, dicol, dmat in all process.
+    vector<double> dmat_diagonal_global0;
+    vector<double> dmat_diagonal_global1;
 
 	vector<vector<int>> *dv;  //dv: the q.n. for states (m,i) at coordinate j.  [m][i][j]: [detector][state][mode]
 	vector<int> *dirow;
@@ -100,7 +103,7 @@ public:
 
     // MPI version of function.
     void construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log, vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
-    void construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstream & log, vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
+    void construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstream & log, vector<double> & dmat_diagonal_global0, vector<double> & dmat_diagonal_global1, vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
     void compute_detector_offdiag_part_MPI(ofstream & log,vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
     void broadcast_total_dmat();  // broadcast dmat, dirow , dicol to form total_dirow, total_dicol, total_dmat
     void broadcast_dmatnum_doffnum(); // broadcast dmatnum, doffnum, dmatnum_each_process, doffnum_each_process, total_dmatnum etc.
@@ -116,7 +119,7 @@ public:
     void construct_initial_state_MPI(vector<vector<int>> & initial_state_quantum_num);
     void initialize_detector_state_MPI(ofstream & log);
 
-    // used to broadcast dv_all , vmode0, vmode1 , dmat0, dmat1
+    // used to broadcast dv_all , vmode0, vmode1 , dmat_diagonal_global0, dmat_diagonal_global1
     void Broadcast_dv_all();
 
     void compute_important_state_index();
@@ -124,6 +127,18 @@ public:
     // for nonadiabatic franck condon factor
     void compute_franck_condon_factor_table();
     void find_franck_condon_factor_for_monomer_states();
+
+    // compute N loc for each monomer
+    void compute_local_density_of_state_subroutine(int monomer_index, vector<double> & state_energy_global_matrix,
+                                                   vector<int> & coupling_state_index_list, vector<vector<int>> & coupling_state_qn_list,
+                                                   vector<double> & coupling_state_strength, vector<double> & coupling_state_energy_diff,
+                                                   double & effective_coupling_number);
+
+    void compute_local_density_of_state(vector<vector<vector<int>>> & coupling_state_index_list,
+                                        vector<vector<vector<vector<int>>>> & coupling_state_qn_list,
+                                        vector<vector<vector<double>>> & coupling_state_strength_list,
+                                        vector<vector<vector<double>>> & coupling_state_energy_diff_list,
+                                        vector<vector<double>> & effective_coupling_number_list);
 
 };
 
@@ -164,8 +179,8 @@ private:
     // vmode,dmat for each detector.
     vector<vector<int>> vmode0;
     vector<vector<int>> vmode1;
-    vector<double> dmat0;
-    vector<double> dmat1;
+    vector<double> dmat_diagonal_global0;
+    vector<double> dmat_diagonal_global1;
 
 
     // used for receiving and sending vedtor x , y from/to other process
@@ -254,6 +269,12 @@ public:
     // for computing electronic survival probability
     void generate_label_for_electronic_survival_prob_calculation(vector<double> & electronic_state_label_array);
 
+    // compute Nloc for each monomer.
+    void compute_local_density_of_state(vector<vector<vector<int>>> & coupling_state_index_list,
+                                        vector<vector<vector<vector<int>>>> & coupling_state_qn_list,
+                                        vector<vector<vector<double>>> & coupling_state_strength_list,
+                                        vector<vector<vector<double>>> & coupling_state_energy_diff_list,
+                                        vector<vector<double>> & effective_coupling_number_list);
 };
 
 

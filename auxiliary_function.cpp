@@ -48,6 +48,32 @@ full_system::~full_system(){
 
 }
 
+template <typename T > void broadcast_1d_vector(vector<T> & vector_array, int & array_size, MPI_Datatype datatype , int root){
+    int i;
+
+    MPI_Bcast(&array_size, 1, MPI_INT, root, MPI_COMM_WORLD);
+
+    T *array = new T [array_size];
+    if (my_id == root){
+        for(i=0;i<array_size;i++) {
+            array[i] = vector_array[i];
+        }
+    }
+    MPI_Bcast(&array[0], array_size, datatype, root, MPI_COMM_WORLD);
+    if (my_id != root){
+        for(i=0;i<array_size;i++){
+            vector_array.push_back(array[i]);
+        }
+    }
+
+    delete [] array;
+}
+// explicitly instantiate template.
+// see :https://bytefreaks.net/programming-2/c/c-undefined-reference-to-templated-class-function
+template void broadcast_1d_vector <int>( vector<int> & vector_array, int & array_size, MPI_Datatype datatype, int root);
+template void broadcast_1d_vector <double> (vector<double> & vector_array , int & array_size, MPI_Datatype datatype, int root);
+
+
 
 void get_current_path(){
     char buff[FILENAME_MAX];

@@ -46,11 +46,13 @@ void detector::allocate_space() {
     total_dmat_num.reserve(2);
     total_dmat_off_num.reserve(2);
     dmatsize_each_process = new int * [2];
+    dmatsize_offset_each_process = new int * [2];
     doffnum_each_process= new int * [2];
     dmatnum_each_process= new int * [2];;  // record detector matrix element number in each process.
     dmat_offset_each_process= new int * [2];; // record local first detector matrix's index in global matrix.
     for(i=0;i<electronic_state_num;i++){
         dmatsize_each_process[i]= new int [num_proc];
+        dmatsize_offset_each_process[i] = new int [num_proc];
         doffnum_each_process[i]= new int [num_proc];
         dmatnum_each_process[i] = new int [num_proc];
         dmat_offset_each_process[i] = new int [num_proc];
@@ -130,14 +132,14 @@ void detector::read_MPI(ifstream & input, ofstream & output, int electronic_stat
     }
 };
 
-void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstream & log,  vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1) {
+void detector:: construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstream & log, vector<double> & dmat_diagonal_global0, vector<double> & dmat_diagonal_global1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1) {
     int m, i;
 
-    construct_dv_dirow_dicol_dmatrix_MPI(log, dmat0, dmat1, vmode0, vmode1);
+    construct_dv_dirow_dicol_dmatrix_MPI(log, dmat_diagonal_global0, dmat_diagonal_global1, vmode0, vmode1);
 
     compute_important_state_index();
     // -------------------------- constructing off-diagonal term for detector  -----------------------------
-    compute_detector_offdiag_part_MPI(log,dmat0,dmat1,vmode0,vmode1);
+    compute_detector_offdiag_part_MPI(log, dmat_diagonal_global0, dmat_diagonal_global1, vmode0, vmode1);
 
     broadcast_dmatnum_doffnum();
     broadcast_total_dmat();
@@ -186,7 +188,7 @@ void detector:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log,vector<doubl
     vector_size = new int *[2];
     displacement_list = new int *[2];
 
-    Broadcast_dmat_vmode(electronic_state_num, dmat0, dmat1, vmode0, vmode1); // broadcast dmat0, dmat1, vmode0, vmode1 to all process to compute off-diagonal matrix.
+    Broadcast_dmat_vmode(electronic_state_num, dmat0, dmat1, vmode0, vmode1); // broadcast dmat_diagonal_global0, dmat_diagonal_global1, vmode0, vmode1 to all process to compute off-diagonal matrix.
     dv_all[0] = vmode0;
     dv_all[1] = vmode1;
 
@@ -235,6 +237,14 @@ void detector:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log,vector<doubl
     for(m=0; m < electronic_state_num; m++){
         MPI_Allgather(&dmatsize[m],1, MPI_INT,&dmatsize_each_process[m][0],1,MPI_INT,MPI_COMM_WORLD);
     }
+
+    for(m=0;m<electronic_state_num;m++){
+        dmatsize_offset_each_process[m][0] = 0;
+        for(i=1;i<num_proc;i++){
+            dmatsize_offset_each_process[m][i] = dmatsize_offset_each_process[m][i-1] + dmatsize_each_process[m][i-1];
+        }
+    }
+
     if(my_id == 0) {
         for (m = 0; m < electronic_state_num; m++) {
             delete[] vector_size[m];
@@ -250,8 +260,8 @@ void detector:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log,vector<doubl
 void Broadcast_dmat_vmode(int stlnum, vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1){
     int i,j,m;
     int dmat0_size, dmat1_size;
-    // we broadcast dmat0, dmat1, .. to all other process. This is need for us to compute off diagonal matrix
-    // first allocate space for dmat0 , dmat1.
+    // we broadcast dmat_diagonal_global0, dmat_diagonal_global1, .. to all other process. This is need for us to compute off diagonal matrix
+    // first allocate space for dmat_diagonal_global0 , dmat_diagonal_global1.
     if(my_id==0){
         dmat0_size= dmat0.size();
         dmat1_size= dmat1.size();
@@ -262,7 +272,7 @@ void Broadcast_dmat_vmode(int stlnum, vector<double> & dmat0,  vector<double> & 
         dmat0.resize(dmat0_size);
         dmat1.resize(dmat1_size);
     }
-    // Broadcast dmat0, dmat1
+    // Broadcast dmat_diagonal_global0, dmat_diagonal_global1
     MPI_Bcast((void *) dmat0.data(),dmat0_size,MPI_DOUBLE,0,MPI_COMM_WORLD);
     MPI_Bcast((void *) dmat1.data(),dmat1_size,MPI_DOUBLE,0,MPI_COMM_WORLD);
 
@@ -339,7 +349,7 @@ void detector::compute_detector_offdiag_part_MPI(ofstream & log,vector<double> &
             dmat_ptr= &(dmat1);
         }
         begin_index= total_dmat_size[m]/num_proc * my_id;
-        // compute off diagonal matrix element, using dmat0, dmat1.
+        // compute off diagonal matrix element, using dmat_diagonal_global0, dmat_diagonal_global1.
         for(i=begin_index;i<begin_index + dmatsize[m];i++){  // for my_id==0 , O(dmatsize * dmatsize/ proc_num)
             for(j=0;j<total_dmat_size[m];j++){ // j is different from serial program. Now we record both symmetric Hamiltonian element
                 if (i==j) continue;

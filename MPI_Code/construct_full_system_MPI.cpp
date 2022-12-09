@@ -53,7 +53,7 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
                     initial_dimer_state_index = mat_index;
                 }
 
-                energy = s.tlmat[i] + dmat0[j] + dmat1[k]; // energy of electronic state + energy in two monomer.
+                energy = s.tlmat[i] + d.dmat_diagonal_global0[j] + d.dmat_diagonal_global1[k]; // energy of electronic state + energy in two monomer.
                 sstate.push_back(i);
                 dstate[0].push_back(j); // dstate record detector global index
                 dstate[1].push_back(k);

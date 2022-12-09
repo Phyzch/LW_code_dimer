@@ -18,7 +18,10 @@ full_system::full_system(string path1 , vector<vector<int>> & initial_state_quan
 
     compute_detector_matrix_size_MPI();
 
-    d.construct_dmatrix_MPI(input, output, log,dmat0,dmat1,vmode0,vmode1);
+    d.construct_dmatrix_MPI(input, output, log, dmat_diagonal_global0, dmat_diagonal_global1, vmode0, vmode1);
+
+    d.dmat_diagonal_global0 = dmat_diagonal_global0;
+    d.dmat_diagonal_global1 = dmat_diagonal_global1;
 
     construct_fullmatrix_with_energy_window_MPI();
 

@@ -38,5 +38,8 @@ int compar(const void * a, const void * b);
 
 void check_and_create_file(string parent_path, string path);
 
+template <typename T> void broadcast_1d_vector(vector<T> & vector_array, int & array_size, MPI_Datatype datatype, int root );
+
+
 #endif //QUANTUM_MEASUREMENT_UTIL_H
 

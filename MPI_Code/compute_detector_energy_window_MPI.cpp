@@ -173,7 +173,7 @@ void full_system:: compute_detector_matrix_size_MPI( ){
                 }
                 // when we push back we should consider arrange them in order. We compute location to insert in find_position_for_insert_binary() function:
                 vmode0.insert(vmode0.begin() + location, ndetector0);
-                dmat0.insert(dmat0.begin() + location, detector0_energy);
+                dmat_diagonal_global0.insert(dmat_diagonal_global0.begin() + location, detector0_energy);
             }
         }
         label1:;
@@ -242,7 +242,7 @@ void full_system:: compute_detector_matrix_size_MPI( ){
                     MPI_Abort(MPI_COMM_WORLD,-15);
                 }
                 vmode1.insert(vmode1.begin() + location, ndetector1);
-                dmat1.insert(dmat1.begin() + location, detector1_energy);
+                dmat_diagonal_global1.insert(dmat_diagonal_global1.begin() + location, detector1_energy);
             }
         }
         label4:;

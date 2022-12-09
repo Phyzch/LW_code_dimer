@@ -26,6 +26,7 @@ detector::~detector(){
 
     for(i=0; i < electronic_state_num; i++){
         delete [] dmatsize_each_process[i];
+        delete [] dmatsize_offset_each_process[i];
         delete [] doffnum_each_process[i];
         delete [] dmatnum_each_process[i];
         delete [] dmat_offset_each_process[i];
@@ -49,6 +50,7 @@ detector::~detector(){
     delete [] mfreq;
     delete [] electron_phonon_coupling;
     delete [] dmatsize_each_process;
+    delete [] dmatsize_offset_each_process;
     delete [] doffnum_each_process;
     delete [] dmatnum_each_process;
     delete [] dmat_offset_each_process;

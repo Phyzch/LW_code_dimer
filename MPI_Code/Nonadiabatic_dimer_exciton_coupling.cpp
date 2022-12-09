@@ -247,7 +247,7 @@ void full_system:: compute_nonadiabatic_offdiagonal_matrix_full_system(vector < 
         state_d1_index = dstate[0][i]; // global index for detector (monomer)
         state_d2_index = dstate[1][i];
 
-        state_energy = s.tlmat[state_s_index] + dmat0[state_d1_index] + dmat1[state_d2_index];
+        state_energy = s.tlmat[state_s_index] + dmat_diagonal_global0[state_d1_index] + dmat_diagonal_global1[state_d2_index];
 
         if (state_s_index == 0){
             coupled_state_s_index = 1;
@@ -280,7 +280,7 @@ void full_system:: compute_nonadiabatic_offdiagonal_matrix_full_system(vector < 
 
                 off_diagonal_matrix_ele = nonadiabatic_coupling * franck_condon_factor_d1 * franck_condon_factor_d2;
 
-                coupled_state_energy = s.tlmat[ coupled_state_s_index ] + dmat0[coupled_state_d1_index] + dmat1[coupled_state_d2_index];
+                coupled_state_energy = s.tlmat[ coupled_state_s_index ] + dmat_diagonal_global0[coupled_state_d1_index] + dmat_diagonal_global1[coupled_state_d2_index];
 
                 state_energy_difference = abs(state_energy - coupled_state_energy);
 
