@@ -21,12 +21,17 @@ void output_Nloc_for_vibrational_dimer_states(string file_path , vector<vector<v
                                               vector<vector<vector<double>>> & coupling_state_energy_diff_list,
                                               vector<vector<double>> & effective_coupling_number_list);
 
+void output_vibrational_energy_dimer_states(string file_path, vector<vector<vector<int>>> & state_quantum_number_list,
+                                            vector<double> & state_energy_list,
+                                            vector<vector<double>> & time_list_all_states,
+                                            vector<vector<vector<double>>> & vibrational_energy_list_all_states);
+
 void read_state_quantum_number_list(string file_path, vector<vector<vector<int>>> & state_quantum_number_list);
 
 int main(int argc,char * argv []) {
     srand(time(0));
-    string path = "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/batch_simulation_Bigwood_scaling/"
-                  "nonstatistical_states/try/";
+    string path = "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/"
+                  "batch_simulation_Bigwood_scaling/batch_simulation_energy_in_one_monomer/output_file/Vt=0/";
 
 
     string s;
@@ -59,6 +64,9 @@ int main(int argc,char * argv []) {
     vector<vector<vector<double>>>  coupling_state_energy_diff_list;
     vector<vector<double>>  effective_coupling_number_list;
 
+    // for vibrational energy in each monomer
+    vector<vector<vector<double>>> vibrational_energy_list_all_states;
+
     if(my_id == 0){
         cout << "total state num for simulation : " << state_num << endl;
     }
@@ -72,9 +80,12 @@ int main(int argc,char * argv []) {
             vector<double> electronic_survival_prob_list;
             double state_energy;
 
+            vector<vector<double>> vibrational_energy_list;
+
             full_system photon_entangled_system(path , state_quantum_number);  // set parameter and construct Hamiltonian.
 
-            photon_entangled_system.Quantum_evolution(state_energy, time_list, survival_prob_list, electronic_survival_prob_list); // creat initial state (or read from file). Then complete simulation.
+            photon_entangled_system.Quantum_evolution(state_energy, time_list, survival_prob_list, electronic_survival_prob_list,
+                                                      vibrational_energy_list); // creat initial state (or read from file). Then complete simulation.
 
             // compute Nloc for each state.
             photon_entangled_system.compute_local_density_of_state(coupling_state_index_list, coupling_state_qn_list,
@@ -84,6 +95,7 @@ int main(int argc,char * argv []) {
             time_list_all_states.push_back(time_list);
             survival_prob_list_all_states.push_back(survival_prob_list);
             electronic_survival_prob_list_all_states.push_back(electronic_survival_prob_list);
+            vibrational_energy_list_all_states.push_back(vibrational_energy_list);
         }
 
         if(my_id == 0){
@@ -106,6 +118,10 @@ int main(int argc,char * argv []) {
             state_energy_list, coupling_state_index_list,
             coupling_state_qn_list, coupling_state_strength_list,
             coupling_state_energy_diff_list, effective_coupling_number_list);
+
+    output_vibrational_energy_dimer_states(path, state_quantum_number_list, state_energy_list, time_list_all_states,
+                                           vibrational_energy_list_all_states);
+
     MPI_Finalize();
 }
 
@@ -315,6 +331,54 @@ void output_Nloc_for_vibrational_dimer_states(string file_path , vector<vector<v
             Nloc_output<< endl;
         }
         Nloc_output.close();
+    }
+
+}
+
+void output_vibrational_energy_dimer_states(string file_path, vector<vector<vector<int>>> & state_quantum_number_list,
+                                            vector<double> & state_energy_list,
+                                            vector<vector<double>> & time_list_all_states,
+                                            vector<vector<vector<double>>> & vibrational_energy_list_all_states){
+    int i, j, k, m;
+    int electronic_state_num = 2;
+    int nmodes = state_quantum_number_list[0][0].size();
+    vector<double> time_list = time_list_all_states[0];
+    int time_step = time_list.size();
+
+    ofstream vibrational_energy_output;
+    int state_num = state_energy_list.size();
+
+    string file_name = "vibrational_energy.txt";
+
+    if(my_id == 0){
+         vibrational_energy_output.open(file_path + file_name);
+         vibrational_energy_output << state_num << endl;
+        // output state energy
+        for(i=0; i< state_num; i++){
+            vibrational_energy_output << state_energy_list[i] << " ";
+        }
+        vibrational_energy_output << endl;
+        // output mode quanta
+        for(i=0;i < state_num; i++){
+            for(m=0; m< electronic_state_num; m++){
+                for(k=0; k<nmodes; k++){
+                    vibrational_energy_output << state_quantum_number_list[i][m][k] << " ";
+                }
+                vibrational_energy_output << "       ";
+            }
+            vibrational_energy_output << endl;
+        }
+        // output vibrational energy
+        for(i=0;i<time_step;i++){
+            vibrational_energy_output << time_list[i] << endl;
+            for(m=0;m<electronic_state_num;m++){
+                for(j=0;j<state_num;j++){
+                    vibrational_energy_output << vibrational_energy_list_all_states[j][m][i] << " ";
+                }
+                vibrational_energy_output << endl;
+            }
+        }
+        vibrational_energy_output.close();
     }
 
 }

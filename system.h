@@ -215,7 +215,8 @@ public:
 	full_system(string path1 , vector<vector<int>> & initial_state_quantum_number);
 	~full_system();
 	void dimension_check();
-	void Quantum_evolution( double & state_energy, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list );;
+	void Quantum_evolution( double & state_energy, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list ,
+                            vector<vector<double>> & monomer_vib_energy);;
 
     // MPI version of code:
     void read_input_with_MPI();

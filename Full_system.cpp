@@ -32,7 +32,8 @@ full_system::full_system(string path1 , vector<vector<int>> & initial_state_quan
 }
 
 // Doing Quantum Simulation with SUR algorithm, parallelized version.
-void full_system::Quantum_evolution( double & state_energy_for_record, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list ) {
+void full_system::Quantum_evolution( double & state_energy_for_record, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list ,
+                                     vector<vector<double>> & monomer_vib_energy) {
     // state_mode_list : record vibrational qn for initial state
     // time_list: record time.  survival probability list: record survival probability.  electronic_survival_probability_list : record electronic survival probability
 
@@ -50,6 +51,12 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
 
     // record the state energy
     state_energy_for_record = initial_state_energy;
+
+    // record vib energy for each monomer
+    vector<double> monomer1_vib_energy_list;
+    vector<double> monomer2_vib_energy_list;
+    double monomer1_vib_energy_each_pc, monomer2_vib_energy_each_pc;
+    double monomer1_vib_energy, monomer2_vib_energy;
 
     // -----------------------------------------------------------------------------------
     // convert all matrix elements for ps-wavenumber units
@@ -116,6 +123,22 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
             electronic_survival_probability_list.push_back(electronic_survival_prob_sum);
 
             //  end for code computing electronic survival probability.
+
+            // code for computing vibrational energy in each monomer
+            monomer1_vib_energy_each_pc = 0;
+            monomer2_vib_energy_each_pc = 0;
+            monomer1_vib_energy = 0;
+            monomer2_vib_energy = 0;
+            for(i=0;i<matsize;i++){
+                monomer1_vib_energy_each_pc = monomer1_vib_energy_each_pc +  ( pow(x[i],2) + pow(y[i], 2)) *  dmat_diagonal_global0[ dstate[0][i] ];
+                monomer2_vib_energy_each_pc = monomer2_vib_energy_each_pc +  ( pow(x[i],2) + pow(y[i], 2)) * dmat_diagonal_global1[ dstate[1][i] ];
+            }
+            MPI_Allreduce(&monomer1_vib_energy_each_pc, &monomer1_vib_energy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(&monomer2_vib_energy_each_pc, &monomer2_vib_energy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            monomer1_vib_energy_list.push_back(monomer1_vib_energy);
+            monomer2_vib_energy_list.push_back(monomer2_vib_energy);
+            // end code for computing vib energy in each monomer
+
         }
 
         evolve_wave_func_one_step();
@@ -131,6 +154,8 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
         cout << "The total run time for parallel computing is " << (double(duration)/CLOCKS_PER_SEC)/60 << " minutes  for simulation time  " << tmax << endl;
     }
 
+    monomer_vib_energy.push_back(monomer1_vib_energy_list);
+    monomer_vib_energy.push_back(monomer2_vib_energy_list);
 
     // -------------------------- free space
 
