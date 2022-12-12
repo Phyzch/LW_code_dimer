@@ -28,6 +28,8 @@ using namespace std;
 extern int Rmax;
 
 extern double nonadiabatic_coupling;
+extern bool self_anharmonicity_bool;
+extern double self_anharmonicity_D;
 
 // define function here
 void convert_dv(const vector<vector<int>> & vec_2d, vector <int>  & vec_1d , vector <int> & displacement , vector <int> & element_size );

@@ -126,7 +126,13 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             }
             // calculate detector 0 energy
             for (i = 0; i < d.nmodes[0]; i++) {
-                detector0_energy = detector0_energy + ndetector0[i] * d.mfreq[0][i];
+                if (self_anharmonicity_bool){
+                    // add self-anharmonicity
+                    detector0_energy = detector0_energy +  d.mfreq[0][i] * (ndetector0[i] - pow(ndetector0[i],2) * d.mfreq[0][i]/(4 * self_anharmonicity_D) );
+                }
+                else{
+                    detector0_energy = detector0_energy + d.mfreq[0][i] * ndetector0[i] ;
+                }
             }
 
             //--------------------------------------------------------------------------------------------
@@ -194,7 +200,13 @@ void full_system:: compute_detector_matrix_size_MPI( ){
             }
             // calculate detector 1 energy
             for (i = 0; i < d.nmodes[1]; i++) {
-                detector1_energy = detector1_energy + ndetector1[i] * d.mfreq[1][i];
+                if (self_anharmonicity_bool){
+                    // add self-anharmonicity
+                    detector1_energy = detector1_energy +  d.mfreq[1][i] * (ndetector1[i] - pow(ndetector1[i],2) * d.mfreq[1][i]/(4 * self_anharmonicity_D) );
+                }
+                else{
+                    detector1_energy = detector1_energy + ndetector1[i] * d.mfreq[1][i];
+                }
             }
             // --------------------------------------------------------------
             //  criteria below make sure detector 1's energy is reasonable:

@@ -532,7 +532,7 @@ void detector::construct_initial_state_MPI( vector<vector<int>> & initial_state_
     for(m=0; m < electronic_state_num; m++){
         // initialize our initial detector state.  set dark mode's quanta equal to bright_state.
         for(i=0;i<nmodes[m];i++){
-            initial_state_energy[m]= initial_state_energy[m] + initial_detector_state[m][i] * mfreq[m][i];
+            initial_state_energy[m]= initial_state_energy[m] + initial_detector_state[m][i] * mfreq[m][i] - pow( mfreq[m][i] * initial_detector_state[m][i] , 2)/ (4 * self_anharmonicity_D);
         }
     }
 

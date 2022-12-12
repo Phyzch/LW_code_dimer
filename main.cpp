@@ -7,6 +7,9 @@ namespace fs = std::experimental::filesystem;
 // Information for MPI program
 int my_id;
 int num_proc;
+bool self_anharmonicity_bool = true;
+double self_anharmonicity_D = 30000;
+
 
 void output_survival_prob( string file_path , vector<vector<vector<int>>> & state_quantum_number_list,
                            vector<double> & state_energy_list,
@@ -31,7 +34,7 @@ void read_state_quantum_number_list(string file_path, vector<vector<vector<int>>
 int main(int argc,char * argv []) {
     srand(time(0));
     string path = "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/"
-                  "batch_simulation_Bigwood_scaling/batch_simulation_energy_in_one_monomer/output_file/Vt=0/";
+                  "batch_simulation_Bigwood_scaling/batch_simulation_energy_in_one_monomer/try/";
 
 
     string s;

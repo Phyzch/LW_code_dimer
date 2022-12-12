@@ -264,6 +264,7 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
     special_state_x = new double [s.electronic_state_num];
     special_state_y= new double [s.electronic_state_num];
     bool * exist_bool_for_pc = new bool [num_proc];
+
     for(m=0;m<s.electronic_state_num; m++){
         vector <int> vec_special_state;
         for(i=0;i<d.nmodes[m]; i++){
