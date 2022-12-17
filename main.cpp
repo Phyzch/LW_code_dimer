@@ -33,8 +33,8 @@ void read_state_quantum_number_list(string file_path, vector<vector<vector<int>>
 
 int main(int argc,char * argv []) {
     srand(time(0));
-    string path = "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/"
-                  "batch_simulation_Bigwood_scaling/batch_simulation_energy_in_one_monomer/try/";
+    string path = "//home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/"
+                  "batch_simulation_Bigwood_scaling/nonstatistical_states/try/";
 
 
     string s;
@@ -87,12 +87,14 @@ int main(int argc,char * argv []) {
 
             full_system photon_entangled_system(path , state_quantum_number);  // set parameter and construct Hamiltonian.
 
-            photon_entangled_system.Quantum_evolution(state_energy, time_list, survival_prob_list, electronic_survival_prob_list,
-                                                      vibrational_energy_list); // creat initial state (or read from file). Then complete simulation.
-
             // compute Nloc for each state.
             photon_entangled_system.compute_local_density_of_state(coupling_state_index_list, coupling_state_qn_list,
                                                                    coupling_state_strength_list, coupling_state_energy_diff_list, effective_coupling_number_list);
+
+
+            photon_entangled_system.Quantum_evolution(state_energy, time_list, survival_prob_list, electronic_survival_prob_list,
+                                                      vibrational_energy_list); // creat initial state (or read from file). Then complete simulation.
+
 
             state_energy_list.push_back(state_energy);
             time_list_all_states.push_back(time_list);

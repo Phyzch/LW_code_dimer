@@ -173,6 +173,7 @@ private:
     vector <quotient_state> d2list;  // state in quotient Hilbert space for detector 2
 
     vector<quotient_state> d2list_all;
+    vector<quotient_state> d1list_all;
 
     vector <sys_quotient_state> slist;  // state in quotient Hilbert space for system.
 

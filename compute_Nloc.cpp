@@ -93,7 +93,7 @@ void detector:: compute_local_density_of_state_subroutine(int monomer_index, vec
     // for record result
     int coupling_state_num;
     effective_coupling_number = 0;
-
+    double effective_coupling_number_between_states;
 
     if (my_id == state_proc_id){
         // go through off diagonal coupling
@@ -102,17 +102,18 @@ void detector:: compute_local_density_of_state_subroutine(int monomer_index, vec
                 energy_diff = abs(state_energy_global_matrix[state_index_in_global_matrix] - state_energy_global_matrix[dicol[monomer_index][i]] );
 
                 // do not include state whose energy difference is small (polyad).
-                if( abs(energy_diff) <= 10 ){
-                    continue;
-                }
-
-                effective_coupling_number = effective_coupling_number + 1 / (1 + pow(energy_diff / dmat[monomer_index][i] , 2)) ;
+//                if( abs(energy_diff) <= 10 ){
+//                    continue;
+//                }
+                effective_coupling_number_between_states = 1 / (1 + pow(energy_diff / dmat[monomer_index][i] , 2));
+                effective_coupling_number = effective_coupling_number + effective_coupling_number_between_states ;
                 coupling_state_index = dicol[monomer_index][i] ;
 
-                coupling_state_index_list.push_back(coupling_state_index );
-                coupling_state_energy_diff.push_back(energy_diff);
-                coupling_state_strength.push_back(dmat[monomer_index][i]);
-
+                if (effective_coupling_number_between_states > 0.01 ){
+                    coupling_state_index_list.push_back(coupling_state_index );
+                    coupling_state_energy_diff.push_back(energy_diff);
+                    coupling_state_strength.push_back(dmat[monomer_index][i]);
+                }
 
             }
         }
