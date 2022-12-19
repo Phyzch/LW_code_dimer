@@ -34,7 +34,7 @@ void read_state_quantum_number_list(string file_path, vector<vector<vector<int>>
 int main(int argc,char * argv []) {
     srand(time(0));
     string path = "//home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/"
-                  "batch_simulation_Bigwood_scaling/nonstatistical_states/try/";
+                  "batch_simulation_Bigwood_scaling/nonstatistical_states/single_localized_state_analysis/";
 
 
     string s;

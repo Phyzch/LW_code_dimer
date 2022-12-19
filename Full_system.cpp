@@ -92,6 +92,38 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
     vector<double> electronic_state_label_array;
     generate_label_for_electronic_survival_prob_calculation(electronic_state_label_array);
 
+    // quantum probability for coupled state
+    vector<int> dimer_coupling_state_index_list;
+    vector<int> dimer_coupling_state_pc_id_list;
+    vector<vector<vector<int>>> dimer_coupled_state_quantum_number_list;
+    vector<double>  dimer_coupling_state_energy_list;
+    int coupled_dimer_state_num;
+    double coupled_dimer_state_probability;
+
+    construct_locally_coupled_states_for_monitor_Pt(dimer_coupling_state_index_list, dimer_coupling_state_pc_id_list, dimer_coupled_state_quantum_number_list, dimer_coupling_state_energy_list);
+    coupled_dimer_state_num = dimer_coupled_state_quantum_number_list.size();
+
+    // output coupled states.
+    ofstream coupled_state_quantum_prob_output;
+    if(my_id == 0){
+        coupled_state_quantum_prob_output.open( path + "coupled_state_survival_prob.txt" );
+        coupled_state_quantum_prob_output << coupled_dimer_state_num << endl;
+        // output coupled state energy
+        for(i=0;i<coupled_dimer_state_num;i++){
+            coupled_state_quantum_prob_output << dimer_coupling_state_energy_list[i] << " ";
+        }
+        coupled_state_quantum_prob_output << endl;
+        for(i=0;i<coupled_dimer_state_num;i++){
+            for(m=0;m<d.electronic_state_num;m++){
+                for(k=0;k<d.nmodes[m];k++){
+                    coupled_state_quantum_prob_output << dimer_coupled_state_quantum_number_list[i][m][k] << " ";
+                }
+                coupled_state_quantum_prob_output << "       ";
+            }
+            coupled_state_quantum_prob_output << endl;
+        }
+    }
+
 
 	for (k = initial_step; k <= steps; k++) {
 
@@ -139,6 +171,24 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
             monomer2_vib_energy_list.push_back(monomer2_vib_energy);
             // end code for computing vib energy in each monomer
 
+            // code for computing energy of coupled vibrational states
+            if(my_id == 0){
+                coupled_state_quantum_prob_output << t << endl;
+            }
+            for(i=0; i < coupled_dimer_state_num; i++){
+                if(my_id == dimer_coupling_state_pc_id_list[i]){
+                    coupled_dimer_state_probability = pow( x[dimer_coupling_state_index_list[i]] , 2 ) + pow( y[dimer_coupling_state_index_list[i]] ,2) ;
+                }
+                MPI_Bcast( & coupled_dimer_state_probability, 1, MPI_DOUBLE, dimer_coupling_state_pc_id_list[i], MPI_COMM_WORLD );
+                if(my_id == 0){
+                    coupled_state_quantum_prob_output << coupled_dimer_state_probability << " ";
+                }
+            }
+            if(my_id == 0){
+                coupled_state_quantum_prob_output << endl;
+            }
+            // code for computing energy of coupled vibrational states
+
         }
 
         evolve_wave_func_one_step();
@@ -160,10 +210,13 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
     // -------------------------- free space
 
     // ------------------------------------------------------------------------------------
-	input.close();
-	log.close();
-	output.close();
-	resource_output.close();
+    if (my_id == 0){
+        input.close();
+        log.close();
+        output.close();
+        resource_output.close();
+        coupled_state_quantum_prob_output.close();
+    }
 
 
 

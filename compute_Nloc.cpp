@@ -12,23 +12,132 @@ void full_system:: compute_local_density_of_state(vector<vector<vector<int>>> & 
                                                   vector<vector<vector<double>>> & coupling_state_energy_diff_list,
                                                   vector<vector<double>> & effective_coupling_number_list){
 
-    d.compute_local_density_of_state(coupling_state_index_list, coupling_state_qn_list, coupling_state_strength_list,
-                                   coupling_state_energy_diff_list, effective_coupling_number_list);
-}
-
-void detector:: compute_local_density_of_state(vector<vector<vector<int>>> & coupling_state_index_list,
-                                               vector<vector<vector<vector<int>>>> & coupling_state_qn_list,
-                                               vector<vector<vector<double>>> & coupling_state_strength_list,
-                                               vector<vector<vector<double>>> & coupling_state_energy_diff_list,
-                                               vector<vector<double>> & effective_coupling_number_list){
-    int i,j,k;
-    int monomer_index;
-
     vector<vector<int>> coupling_state_index;
     vector<vector<vector<int>>> coupling_state_qn;
     vector<vector<double>> coupling_state_strength;
     vector<vector<double>> coupling_state_energy_diff;
     vector<double> effective_coupling_number;
+
+    d.compute_local_density_of_state(coupling_state_index, coupling_state_qn, coupling_state_strength,
+                                   coupling_state_energy_diff, effective_coupling_number);
+
+    coupling_state_index_list.push_back(coupling_state_index);
+    coupling_state_qn_list.push_back(coupling_state_qn);
+    coupling_state_strength_list.push_back(coupling_state_strength);
+    coupling_state_energy_diff_list.push_back(coupling_state_energy_diff);
+    effective_coupling_number_list.push_back(effective_coupling_number);
+
+}
+
+void full_system:: construct_locally_coupled_states_for_monitor_Pt( vector<int> & dimer_coupling_state_index_list,
+                                                                    vector<int> & dimer_coupling_state_pc_id_list,
+                                                                    vector<vector<vector<int>>> & dimer_quantum_number_list,
+                                                                    vector<double> & dimer_coupling_state_energy_list){
+    //    find dimer state index we want to monitor quantum probability P(t)
+    //    vector<int> dimer_coupling_state_index_list; // local index in process.
+    //    vector<int> dimer_coupling_state_pc_id_list;
+    //    vector<vector<int>>  dimer_quantum_number [coupled_state_num] [2][ mode_index]
+
+    int i,j,m;
+    int pc_id;
+    int dimer_state_index;
+    int monomer1_coupled_state_num, monomer2_coupled_state_num;
+    int monomer1_coupled_state_index, monomer2_coupled_state_index;
+
+    int initial_monomer_state_global_index; // index across process
+    vector<vector<int>> coupling_state_index;
+    vector<vector<vector<int>>> coupling_state_qn;
+    vector<vector<double>> coupling_state_strength;
+    vector<vector<double>> coupling_state_energy_diff;
+    vector<double> effective_coupling_number;
+
+    d.compute_local_density_of_state(coupling_state_index, coupling_state_qn, coupling_state_strength,
+                                     coupling_state_energy_diff, effective_coupling_number);
+
+    // include monomer state index for initial vibrational states.
+    for(m=0;m<d.electronic_state_num;m++){
+        initial_monomer_state_global_index = d.dmatsize_offset_each_process[m][ d.initial_state_pc_id[m]] + d.initial_state_index[m];
+        coupling_state_index[m].push_back( initial_monomer_state_global_index );
+    }
+
+
+
+    int dimer_coupling_state_index; // local index in process.
+    int dimer_coupling_state_pc_id;
+    double dimer_coupling_state_energy;
+    bool dimer_coupling_state_exist;
+    bool dimer_coupling_state_exist_across_all_pc;
+    bool * dimer_coupling_state_exist_list = new bool [num_proc];
+
+    monomer1_coupled_state_num = coupling_state_index[0].size();
+    monomer2_coupled_state_num = coupling_state_index[1].size();
+
+    for(i=0;i<monomer1_coupled_state_num;i++){
+        for(j=0;j<monomer2_coupled_state_num;j++){
+
+            dimer_coupling_state_exist = false;
+            dimer_coupling_state_exist_across_all_pc = false;
+            dimer_coupling_state_pc_id = -1;
+            dimer_coupling_state_index = -1;
+
+            // index for coupled monomer states across pc.
+            monomer1_coupled_state_index = coupling_state_index[0][i];
+            monomer2_coupled_state_index = coupling_state_index[1][j];
+
+            for(dimer_state_index = 0; dimer_state_index < matsize; dimer_state_index ++ ){
+                if (dstate[0][dimer_state_index] == monomer1_coupled_state_index and dstate[1][dimer_state_index] == monomer2_coupled_state_index){
+                    dimer_coupling_state_index = dimer_state_index;
+                    dimer_coupling_state_exist = true;
+                    break;
+                }
+            }
+
+            // gather info whether we find coupled states.
+            MPI_Allgather(&dimer_coupling_state_exist, 1,  MPI_C_BOOL, &dimer_coupling_state_exist_list[0], 1, MPI_C_BOOL, MPI_COMM_WORLD);
+
+            // find out the process id that coupled state exist
+            for(pc_id =0; pc_id < num_proc; pc_id ++ ){
+                if (dimer_coupling_state_exist_list[pc_id]){
+                    dimer_coupling_state_exist_across_all_pc = true;
+                    dimer_coupling_state_pc_id = pc_id;
+                }
+            }
+
+            // the coupled dimer state exist in basis set, include it in the list for output.
+            if(dimer_coupling_state_exist_across_all_pc){
+                MPI_Bcast(&dimer_coupling_state_index, 1, MPI_INT, dimer_coupling_state_pc_id, MPI_COMM_WORLD);
+                // store pc_id and local state index in pc for coupled states.
+                dimer_coupling_state_pc_id_list.push_back(dimer_coupling_state_pc_id);
+                dimer_coupling_state_index_list.push_back(dimer_coupling_state_index);
+
+                // store dimer quantum number info
+                vector<vector<int>> dimer_quantum_number;
+                dimer_quantum_number.push_back( d.dv_all[0][ monomer1_coupled_state_index ] );
+                dimer_quantum_number.push_back( d.dv_all[1][ monomer2_coupled_state_index ] );
+                dimer_quantum_number_list.push_back(dimer_quantum_number);
+
+                // record state energy
+                if(my_id == dimer_coupling_state_pc_id){
+                    dimer_coupling_state_energy = mat[dimer_coupling_state_index];
+                }
+                MPI_Bcast(&dimer_coupling_state_energy, 1, MPI_DOUBLE, dimer_coupling_state_pc_id, MPI_COMM_WORLD);
+                dimer_coupling_state_energy_list.push_back(dimer_coupling_state_energy);
+            }
+
+        }
+    }
+
+}
+
+
+void detector:: compute_local_density_of_state(vector<vector<int>> & coupling_state_index,
+                                               vector<vector<vector<int>>> & coupling_state_qn,
+                                               vector<vector<double>> & coupling_state_strength,
+                                               vector<vector<double>> & coupling_state_energy_diff,
+                                               vector<double> & effective_coupling_number){
+    int i,j,k;
+    int monomer_index;
+
     for(monomer_index = 0; monomer_index < electronic_state_num; monomer_index ++ ){
         vector<int> coupling_state_index_each_monomer;
         vector<vector<int>> coupling_state_qn_each_monomer;
@@ -56,11 +165,6 @@ void detector:: compute_local_density_of_state(vector<vector<vector<int>>> & cou
         effective_coupling_number.push_back(effective_coupling_number_each_monomer);
     }
 
-    coupling_state_index_list.push_back(coupling_state_index);
-    coupling_state_qn_list.push_back(coupling_state_qn);
-    coupling_state_strength_list.push_back(coupling_state_strength);
-    coupling_state_energy_diff_list.push_back(coupling_state_energy_diff);
-    effective_coupling_number_list.push_back(effective_coupling_number);
 }
 
 void detector:: compute_local_density_of_state_subroutine(int monomer_index, vector<double> & state_energy_global_matrix,

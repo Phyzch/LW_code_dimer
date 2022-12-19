@@ -134,11 +134,11 @@ public:
                                                    vector<double> & coupling_state_strength, vector<double> & coupling_state_energy_diff,
                                                    double & effective_coupling_number);
 
-    void compute_local_density_of_state(vector<vector<vector<int>>> & coupling_state_index_list,
-                                        vector<vector<vector<vector<int>>>> & coupling_state_qn_list,
-                                        vector<vector<vector<double>>> & coupling_state_strength_list,
-                                        vector<vector<vector<double>>> & coupling_state_energy_diff_list,
-                                        vector<vector<double>> & effective_coupling_number_list);
+    void compute_local_density_of_state(vector<vector<int>> & coupling_state_index,
+                                                   vector<vector<vector<int>>> & coupling_state_qn,
+                                                   vector<vector<double>> & coupling_state_strength,
+                                                   vector<vector<double>> & coupling_state_energy_diff,
+                                                   vector<double> & effective_coupling_number);
 
 };
 
@@ -277,6 +277,13 @@ public:
                                         vector<vector<vector<double>>> & coupling_state_strength_list,
                                         vector<vector<vector<double>>> & coupling_state_energy_diff_list,
                                         vector<vector<double>> & effective_coupling_number_list);
+
+    // construct dimer state that initial dimer state coupled to.
+    void construct_locally_coupled_states_for_monitor_Pt( vector<int> & dimer_coupling_state_index_list,
+    vector<int> & dimer_coupling_state_pc_id_list,
+    vector<vector<vector<int>>> & dimer_quantum_number_list,
+    vector<double> & dimer_coupling_state_energy_list);
+
 };
 
 
