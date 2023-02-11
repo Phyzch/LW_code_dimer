@@ -31,10 +31,17 @@ void output_vibrational_energy_dimer_states(string file_path, vector<vector<vect
 
 void read_state_quantum_number_list(string file_path, vector<vector<vector<int>>> & state_quantum_number_list);
 
+void output_exciton_vibrational_density_subroutine(string file_path, string file_name,
+                                                   vector<vector<vector<double>>> & exciton_vibrational_density,
+                                                   vector<vector<double>> & time_list_all_states);
+void output_exciton_vibrational_density(string file_path, vector<vector<double>> & time_list_all_states,
+                                        vector<vector<vector<double>>> & EVD_electronic0,
+                                        vector<vector<vector<double>>> & EVD_electronic1);
+
 int main(int argc,char * argv []) {
     srand(time(0));
-    string path = "//home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/"
-                  "batch_simulation_Bigwood_scaling/nonstatistical_states/single_localized_state_analysis/";
+    string path = "/home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/"
+                  "BChl_dimer_model/5_mode/exciton_vibrational_density/extended/";
 
 
     string s;
@@ -73,8 +80,13 @@ int main(int argc,char * argv []) {
     if(my_id == 0){
         cout << "total state num for simulation : " << state_num << endl;
     }
-    for(i=0; i < state_num; i++){
 
+    vector<vector<vector<double>>> EVD_electronic0; // exciton vibrational density on electronic surface 0
+    vector<vector<vector<double>>> EVD_electronic1; // exciton vibrational density on electronic surface 1
+
+    for(i=0; i < state_num; i++){
+        EVD_electronic0.clear();
+        EVD_electronic1.clear();
         { // the parenthese here let destructor called after we use this instance.
             state_quantum_number = state_quantum_number_list[i];
 
@@ -85,6 +97,7 @@ int main(int argc,char * argv []) {
 
             vector<vector<double>> vibrational_energy_list;
 
+
             full_system photon_entangled_system(path , state_quantum_number);  // set parameter and construct Hamiltonian.
 
             // compute Nloc for each state.
@@ -93,7 +106,8 @@ int main(int argc,char * argv []) {
 
 
             photon_entangled_system.Quantum_evolution(state_energy, time_list, survival_prob_list, electronic_survival_prob_list,
-                                                      vibrational_energy_list); // creat initial state (or read from file). Then complete simulation.
+                                                      vibrational_energy_list,
+                                                      EVD_electronic0, EVD_electronic1); // creat initial state (or read from file). Then complete simulation.
 
 
             state_energy_list.push_back(state_energy);
@@ -126,6 +140,8 @@ int main(int argc,char * argv []) {
 
     output_vibrational_energy_dimer_states(path, state_quantum_number_list, state_energy_list, time_list_all_states,
                                            vibrational_energy_list_all_states);
+
+    output_exciton_vibrational_density(path, time_list_all_states, EVD_electronic0, EVD_electronic1);
 
     MPI_Finalize();
 }
@@ -384,6 +400,60 @@ void output_vibrational_energy_dimer_states(string file_path, vector<vector<vect
             }
         }
         vibrational_energy_output.close();
+    }
+
+}
+
+void output_exciton_vibrational_density(string file_path, vector<vector<double>> & time_list_all_states,
+                                        vector<vector<vector<double>>> & EVD_electronic0,
+                                        vector<vector<vector<double>>> & EVD_electronic1){
+    // output exciton vibrational states for two surface
+    string electronic0_file_name = "EVD0.txt";
+    string electronic1_file_name = "EVD1.txt";
+
+    output_exciton_vibrational_density_subroutine(file_path, electronic0_file_name,
+                                                  EVD_electronic0, time_list_all_states);
+
+    output_exciton_vibrational_density_subroutine(file_path, electronic1_file_name,
+                                                  EVD_electronic1, time_list_all_states);
+
+}
+
+void output_exciton_vibrational_density_subroutine(string file_path, string file_name,
+                                                   vector<vector<vector<double>>> & exciton_vibrational_density,
+                                                   vector<vector<double>> & time_list_all_states){
+    int i,j,k;
+    vector<double> time_list = time_list_all_states[0];
+    int time_step = time_list.size();
+
+    int qn_mode0, qn_mode1;
+    int mode0_size, mode1_size , state_num;
+
+    mode0_size = exciton_vibrational_density[0].size();
+    mode1_size = exciton_vibrational_density[0][0].size();
+    state_num = mode0_size * mode1_size;
+
+    ofstream EVD_output;
+    if(my_id == 0){
+        EVD_output.open(file_path + file_name);
+        EVD_output << state_num << endl;
+        for(i=0;i<mode0_size;i++){
+            for(j=0;j<mode1_size;j++){
+                EVD_output << i << " " << j << endl;
+            }
+        }
+
+        for(i=0;i<time_step;i++){
+            EVD_output << time_list[i] << endl;
+            for(qn_mode0 = 0; qn_mode0 < mode0_size; qn_mode0 ++){
+                for(qn_mode1 = 0; qn_mode1 < mode1_size; qn_mode1 ++){
+                    EVD_output << exciton_vibrational_density[i][qn_mode0][qn_mode1] << " ";
+                }
+            }
+            EVD_output << endl;
+        }
+
+        EVD_output.close();
     }
 
 }

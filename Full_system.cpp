@@ -33,7 +33,10 @@ full_system::full_system(string path1 , vector<vector<int>> & initial_state_quan
 
 // Doing Quantum Simulation with SUR algorithm, parallelized version.
 void full_system::Quantum_evolution( double & state_energy_for_record, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list ,
-                                     vector<vector<double>> & monomer_vib_energy) {
+                                     vector<vector<double>> & monomer_vib_energy,
+                                     vector<vector<vector<double>>> & EVD_electronic0_list,
+                                     vector<vector<vector<double>>> & EVD_electronic1_list
+                                     ) {
     // state_mode_list : record vibrational qn for initial state
     // time_list: record time.  survival probability list: record survival probability.  electronic_survival_probability_list : record electronic survival probability
 
@@ -124,6 +127,12 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
         }
     }
 
+    // for exciton vibrational density
+    mapping_mode0 = 0;
+    mapping_mode1 = 1;
+    // size: [1 + nmax[mapping_mode0], 1 + nmax[mapping_mode1]]
+    vector<vector<double>> EVD_electronic0; // exciton vibrational density on electronic surface 0
+    vector<vector<double>> EVD_electronic1; // exciton vibrational density on electronic surface 1
 
 	for (k = initial_step; k <= steps; k++) {
 
@@ -187,7 +196,12 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
             if(my_id == 0){
                 coupled_state_quantum_prob_output << endl;
             }
-            // code for computing energy of coupled vibrational states
+
+            // code for computing probability of coupled vibrational states (reduced density matrix)
+            compute_exciton_vibrational_density(EVD_electronic0, 0);
+            compute_exciton_vibrational_density(EVD_electronic1, 1);
+            EVD_electronic0_list.push_back(EVD_electronic0);
+            EVD_electronic1_list.push_back(EVD_electronic1);
 
         }
 

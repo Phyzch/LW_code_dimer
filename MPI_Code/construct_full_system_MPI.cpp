@@ -39,7 +39,7 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
     initial_dimer_state_pc_id = d.initial_state_pc_id[0]; // states are sort according to d1 state.
 
     // sstate ,dstate is index for matrix element in full matrix to record the corresponding index in system and detector.
-    dstate = new vector <int> [s.electronic_state_num];
+    dstate = new vector <int> [2];
 
     for(j= begin_index_d1 ; j< end_index_d1;j++){ // index in monomer 1 (detector 1)
         for (k=0;k<d.total_dmat_size[1];k++) {  // index in monomer 2 (detector 2)

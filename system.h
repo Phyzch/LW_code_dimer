@@ -192,7 +192,9 @@ private:
     vector<int>  local_irow;
     vector <int>  local_icol;
 
-    // used for recving and sending vector x,y for computing system_energy
+    // used for exciton vibrational density
+    int mapping_mode0 ;
+    int mapping_mode1 ;
 
 public:
 	class system s;
@@ -217,7 +219,9 @@ public:
 	~full_system();
 	void dimension_check();
 	void Quantum_evolution( double & state_energy, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list ,
-                            vector<vector<double>> & monomer_vib_energy);;
+                            vector<vector<double>> & monomer_vib_energy,
+                            vector<vector<vector<double>>> & EVD_electronic0_list,
+                            vector<vector<vector<double>>> & EVD_electronic1_list);;
 
     // MPI version of code:
     void read_input_with_MPI();
@@ -284,6 +288,8 @@ public:
     vector<vector<vector<int>>> & dimer_quantum_number_list,
     vector<double> & dimer_coupling_state_energy_list);
 
+    // compute exciton vibrational density (EVD) for two modes in monomer 1
+    void compute_exciton_vibrational_density( vector<vector<double>> & exciton_vib_density , int electronic_state );
 };
 
 
