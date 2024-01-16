@@ -15,9 +15,9 @@ extern int num_proc;
 class system {
 public:
 	friend class full_system;
-	friend class detector;
-	double *x_electronic, *y_electronic, *electronic_state_energy, *tlmat; //
-	int electronic_state_num, tlmatsize;
+	friend class monomer;
+	double *x_electronic, *y_electronic, *electronic_state_energy; //
+	int exciton_state_num, tlmatsize;
 	void read_MPI(ifstream &input, ofstream &output, ofstream &log);
     void initialize_energy_level(ifstream & input, ofstream & output);
     void initialize_wavefunction(ifstream & input, ofstream & output);
@@ -27,7 +27,7 @@ public:
 	~system();
 };
 
-class detector {
+class monomer {
 private:
     int electronic_state_num;
     string path;
@@ -39,32 +39,35 @@ public:
 	friend class full_system;
 	friend class system;
 	int *nmodes, **nmax;
-	int *dmatsize;
-    int *dmatnum , *doffnum;  // detector matrix elemetn array
-	vector<int> total_dmat_size; // size of whole matrix across various process.
-	vector <int> total_dmat_num, total_dmat_off_num; // total matrix number and off-diagonal number across various process.
-    vector<vector <int>> * dv_all;
-	int ** dmatsize_each_process;
-	int ** doffnum_each_process;
-	int ** dmatnum_each_process;  // record detector matrix element number in each process.
-    int ** dmatsize_offset_each_process;
-	int ** dmat_offset_each_process; // record local first detector matrix's index in global matrix.
+	int *monomer_matsize;
+    int *monomer_matnum , *monomer_offnum;  // monomer matrix elemetn array
+	vector<int> total_monomer_mat_size; // size of whole matrix across various process.
+	vector <int> total_monomer_mat_num, total_monomer_mat_off_num; // total matrix number and off-diagonal number across various process.
+    vector<vector <int>> * monomer_vibrational_states_all;
+	int ** monomer_matsize_each_process;
+	int ** monomer_offnum_each_process;
+	int ** monomer_matnum_each_process;  // record monomer matrix element number in each process.
+    int ** monomer_matsize_offset_each_process;
+	int ** monomer_mat_offset_each_process; // record local first monomer matrix's index in global matrix.
 
-	double ** total_dmat;
-	int ** total_dirow, ** total_dicol; // dirow, dicol, dmat in all process.
+	double ** total_monomer_mat;
+	int ** total_monomer_irow, ** total_monomer_icol; // monomer_irow, monomer_icol, monomer_mat in all process.
     vector<double> dmat_diagonal_global0;
     vector<double> dmat_diagonal_global1;
 
-	vector<vector<int>> *dv;  //dv: the q.n. for states (m,i) at coordinate j.  [m][i][j]: [detector][state][mode]
-	vector<int> *dirow;
-	vector<int> *dicol;
+	vector<vector<int>> *monomer_vibrational_states_quantum_number_list;  //monomer_vibrational_states_quantum_number_list: the q.n. for states (m,i) at coordinate j.  [m][i][j]: [monomer][state][mode]
+
+    vector<int> *monomer_irow;
+	vector<int> *monomer_icol;
+    vector<double> * monomer_mat; // matrix
+
 	int *deln;  // deln= |n_{i} - n_{j}| at coordinate k
 	double *nbar;
 	double **mfreq; // frequency of mode
 	double **aij;
-	vector <double> * xd, * yd; // wavefunction of detector state
+	vector <double> * xd, * yd; // wavefunction of monomer state
     double ** xd_all, ** yd_all;
-	vector<double> * dmat; // matrix
+
 	double *proptime; // we set proptime for two different mode to be the same
 
     // for EV coupling
@@ -79,23 +82,23 @@ public:
     vector <int > * local_dicol;
 
 
-    //matflag	: = 1 compute detector matrixusing Madsen scaling Hamiltonian
+    //matflag	: = 1 compute monomer matrixusing Madsen scaling Hamiltonian
     //maxdis : largest distance in q.n.space for which matrix element is calculated
-    //cutoff : perturbation cutoff criterion V / delta - E(typ. 0.05) for states within a single detector
+    //cutoff : perturbation cutoff criterion V / delta - E(typ. 0.05) for states within a single monomer
     //cutoff2 : same for states between different detectors : a(i)a(j) / delta - E must be greater than cutoff2
-    //kelvin : detector temperature in kelvin
+    //kelvin : monomer temperature in kelvin
 	int   maxdis;
 	double cutoff;
     double Franck_condon_factor_cutoff;
-    vector<vector<vector<int>>> nonadiabatic_coupled_d_state; // state nonadiabatically coupled to given d state.
-    vector<vector<vector<double>>> nonadiabatic_coupled_d_state_franck_condon; // franck_condon factor for nonadiabtatically coupled state
+    vector<vector<vector<int>>> nonadiabatic_coupled_monomer_state; // state nonadiabatically coupled to given d state.
+    vector<vector<vector<double>>> nonadiabatic_coupled_monomer_state_franck_condon; // franck_condon factor for nonadiabtatically coupled state
 
-	double V_intra, a_intra; // intra detector coupling strength.  a_intra = coupling strength for mfreq = 50.
-    double detector_energy_window_size;
-	int  ** initial_detector_state; // record bright mode for two detectors when we try to see decoherence in our model.
+	double V_intra, a_intra; // intra monomer coupling strength.  a_intra = coupling strength for mfreq = 50.
+    double vibrational_energy_window_size;
+	int  ** initial_vibrational_state; // record bright mode for two detectors when we try to see decoherence in our model.
 	double * initial_state_energy;
-	detector();
-	~detector();
+	monomer();
+	~monomer();
 	void allocate_space();
     void allocate_space_single_detector(int detector_index);
 	void read_MPI(ifstream & input, ofstream & output, int electronic_state_num1, string path);
@@ -103,26 +106,26 @@ public:
 
     // MPI version of function.
     void construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log, vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
-    void construct_dmatrix_MPI(ifstream & input, ofstream & output, ofstream & log, vector<double> & dmat_diagonal_global0, vector<double> & dmat_diagonal_global1, vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
-    void compute_detector_offdiag_part_MPI(ofstream & log,vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
-    void broadcast_total_dmat();  // broadcast dmat, dirow , dicol to form total_dirow, total_dicol, total_dmat
-    void broadcast_dmatnum_doffnum(); // broadcast dmatnum, doffnum, dmatnum_each_process, doffnum_each_process, total_dmatnum etc.
+    void construct_monomer_Hamiltonian_MPI(ifstream & input, ofstream & output, ofstream & log, vector<double> & dmat_diagonal_global0, vector<double> & dmat_diagonal_global1, vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
+    void compute_monomer_offdiag_part_MPI(ofstream & log, vector<double> & dmat0, vector<double> & dmat1, vector<vector<int>> & vmode0, vector<vector<int>> & vmode1);
+    void broadcast_total_dmat();  // broadcast monomer_mat, monomer_irow , monomer_icol to form total_monomer_irow, total_monomer_icol, total_monomer_mat
+    void broadcast_dmatnum_doffnum(); // broadcast monomer_matnum, monomer_offnum, monomer_matnum_each_process, monomer_offnum_each_process, total_dmatnum etc.
     void gather_xd_yd();
     void Scatter_xd_yd();
     void Scatter_dv(vector<int> & total_mat_num);
     void Scatter_dirow_dicol_dmatrix(vector <double> * dmat_all, vector<int> * dirow_data, vector<int> * dicol_data, int ** vector_size,int **vector_displs , ofstream & log);
     int construct_receive_buffer_index(int * remoteVecCount_element, int * remoteVecPtr_element, int * remoteVecIndex_element, int detector_index);
     void prepare_evolution();
-    // MPI version of SUR for one detector for each timestep.
+    // MPI version of SUR for one monomer for each timestep.
     void update_dx_dy(int detector_index);
     void SUR_onestep_MPI( int detector_index, double cf);
     void construct_initial_state_MPI(vector<vector<int>> & initial_state_quantum_num);
-    void initialize_detector_state_MPI(ofstream & log);
+    void initialize_monomer_state_MPI(ofstream & log);
 
-    // used to broadcast dv_all , vmode0, vmode1 , dmat_diagonal_global0, dmat_diagonal_global1
+    // used to broadcast monomer_vibrational_states_all , monomer_qn_list0, monomer_qn_list1 , monomer1_vib_state_energy_all_pc, monomer2_vib_state_energy_all_pc
     void Broadcast_dv_all();
 
-    void compute_important_state_index();
+    void compute_initial_vibrational_state_index();
 
     // for nonadiabatic franck condon factor
     void compute_franck_condon_factor_table();
@@ -143,7 +146,7 @@ public:
 };
 
 class full_system {
-	// detector+ system
+	// monomer+ system
 private:
 	int matnum, offnum, matsize; // matnum is total matrix element number, it should be smaller than matdim.
 	                                // in our program, usually we set matdim=matnum and use these variable interchangably.
@@ -155,11 +158,11 @@ private:
     vector <double> y; // x[matsize], y[matsize]
 	vector <double> mat; // full system matrix, size: matdim
 	vector <int> irow, icol; // row index and column index of matrices, size:matdim
-	vector <int>sstate;
-	vector<int> * dstate;  // sstate[matsize], dstate[matsize].  index of system state and detector for that matrix element. (This could be replaced by function to save space)
+	vector <int> exciton_state_index_list;
+	vector<int> * vibrational_state_index_list;  // exciton_state_index_list[matsize], vibrational_state_index_list[matsize].  index of system state and monomer for that matrix element. (This could be replaced by function to save space)
 
-    vector<int> sstate_all;
-    vector<int> * dstate_all;
+    vector<int> exciton_state_index_list_all;
+    vector<int> * vibrational_state_index_list_all;
 
     int initial_dimer_state_index; // index in process (local index)
     int initial_dimer_state_pc_id; // process id for index.
@@ -169,19 +172,15 @@ private:
     double total_norm;
 				 // below are some variables for density matrix
 
-    vector <quotient_state> d1list;  // state in quotient Hilbert space for detector 1
-    vector <quotient_state> d2list;  // state in quotient Hilbert space for detector 2
+    vector <quotient_state> monomer1_quotient_state_list;  // state in quotient Hilbert space for monomer 1
+    vector <quotient_state> monomer2_quotient_state_list;  // state in quotient Hilbert space for monomer 2
 
-    vector<quotient_state> d2list_all;
-    vector<quotient_state> d1list_all;
 
-    vector <sys_quotient_state> slist;  // state in quotient Hilbert space for system.
-
-    // vmode,dmat for each detector.
-    vector<vector<int>> vmode0;
-    vector<vector<int>> vmode1;
-    vector<double> dmat_diagonal_global0;
-    vector<double> dmat_diagonal_global1;
+    // vmode,monomer_mat for each monomer.
+    vector<vector<int>> monomer_qn_list0;
+    vector<vector<int>> monomer_qn_list1;
+    vector<double> monomer1_vib_state_energy_all_pc;
+    vector<double> monomer2_vib_state_energy_all_pc;
 
 
     // used for receiving and sending vedtor x , y from/to other process
@@ -196,7 +195,7 @@ private:
 
 public:
 	class system s;
-	class detector d;
+	class monomer d;
 
 	// output and input of file
 	ofstream output; // output result we record.
@@ -215,38 +214,38 @@ public:
 
 	full_system(string path1 , vector<vector<int>> & initial_state_quantum_number);
 	~full_system();
-	void dimension_check();
-	void Quantum_evolution( double & state_energy, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list ,
-                            vector<vector<double>> & monomer_vib_energy);;
+	void output_calculation_size_info();
+	void Quantum_dynamics_evolution(double & state_energy_for_record, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_state_survival_probability_list ,
+                                    vector<vector<double>> & monomer_vib_energy);;
 
     // MPI version of code:
     void read_input_with_MPI();
-    void compute_detector_matrix_size_MPI();
+    void compute_monomer_vib_state_basis_set_size_MPI();
     void pre_coupling_evolution_MPI(int initial_state_choice);
-    void construct_fullmatrix_with_energy_window_MPI();
+    void construct_dimer_Hamiltonian_matrix_with_energy_window_MPI();
     void compute_sstate_dstate_diagpart_dirow_dicol_MPI( );
     void construct_quotient_state_all_MPI();
     vector<vector<quotient_state>>  Gather_quotient_state_vec();
     vector<quotient_state> sort_d1list(vector<vector<quotient_state>> & d1list_each_proces);
     void Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list);
-    void construct_q_index_MPI();
-    void rearrange_d1list();
-    void compute_offdiagonal_part_MPI();
-    void compute_dmat_off_diagonal_matrix_in_full_matrix_one_dmat_MPI(int index,vector < double > & mat,
-            vector<int> & irow, vector<int> & icol);
-    void compute_dmat_off_diagonal_matrix_in_full_matrix_MPI(vector < double > & mat,vector  <int> & irow, vector<int> & icol);
+    void construct_anharmonic_coupling_info_index_list_MPI();
+    void rearrange_monomer1list();
+    void compute_full_Hamiltonian_offdiagonal_part_MPI();
+    void compute_anharmonic_coupling_in_full_matrix_in_one_exciton_state_MPI(int monomer_index, vector < double > & anharmonic_coupling_mat,
+                                                                             vector<int> & anharmonic_coupling_irow, vector<int> & anharmonic_coupling_icol);
+    void compute_monomer_anharmonic_coupling_in_full_matrix_MPI(vector < double > & anharmonic_coupling_mat, vector  <int> & anharmonic_coupling_irow, vector<int> & anharmonic_coupling_icol);
 
     void compute_nonadiabatic_offdiagonal_matrix_full_system(vector < double > & nonadiabatic_off_mat,
                                                              vector  <int> & nonadiabatic_off_irow,
                                                              vector<int> & nonadiabatic_off_icol);
 
-    void rearrange_off_diagonal_term(vector < double > & mat,vector  <int> & irow, vector<int> & icol);
-    void  combine_offdiagonal_term(vector<double> & d_off_mat, vector<int> & d_off_irow, vector<int> & d_off_icol,
+    void rearrange_matrix_element_in_different_pc(vector < double > & mat, vector  <int> & irow, vector<int> & icol);
+    void  combine_offdiagonal_term(vector<double> & anharmonic_coupling_mat, vector<int> & anharmonic_coupling_irow, vector<int> & anharmonic_coupling_icol,
                                    vector<double> & nonadiabatic_off_mat, vector<int> & nonadiabatic_off_irow, vector<int> & nonadiabatic_off_icol);
 
     void Initial_state_MPI();
 
-    // function to prepare and evolve photon+detector system:
+    // function to prepare and evolve photon+monomer system:
     int construct_recvbuffer_index();
     void prepare_evolution();
     void  update_x_y();
@@ -266,7 +265,7 @@ public:
     void Normalize_wave_function();
 
     // search x_index using all index in electronic dof, index in monomer1 and index in monomer2
-    int search_full_sys_matrix_given_sd_matrix(int s_state, int d1_state, int d2_state); // find index in full matrix given index in electronic_state, in monomer1, and in monomer2.
+    int search_full_hamiltonian_state_index(int exciton_state, int monomer1_state, int monomer2_state); // find index in full matrix given index in electronic_state, in monomer1, and in monomer2.
 
     // for computing electronic survival probability
     void generate_label_for_electronic_survival_prob_calculation(vector<double> & electronic_state_label_array);

@@ -1,7 +1,7 @@
 #include"system.h"
 #include"util.h"
 using namespace std;
-// advise: When you get lost in all these functions. Keep eye on fullsystem::fullsystem() and full_system::Quantum_evolution. Because
+// advise: When you get lost in all these functions. Keep eye on fullsystem::fullsystem() and full_system::Quantum_dynamics_evolution. Because
 //they are functions do most of works and call other functions here.
 
 // initialization of parameters and do some pre-coupling set up
@@ -13,29 +13,32 @@ full_system::full_system(string path1 , vector<vector<int>> & initial_state_quan
     read_input_with_MPI();
 
 	s.read_MPI(input, output, log);
-	d.read_MPI(input, output, s.electronic_state_num, path);
+	d.read_MPI(input, output, s.exciton_state_num, path);
     d.construct_initial_state_MPI( initial_state_quantum_number);
 
-    compute_detector_matrix_size_MPI();
+    compute_monomer_vib_state_basis_set_size_MPI();
 
-    d.construct_dmatrix_MPI(input, output, log, dmat_diagonal_global0, dmat_diagonal_global1, vmode0, vmode1);
+    d.construct_monomer_Hamiltonian_MPI(input, output, log, monomer1_vib_state_energy_all_pc, monomer2_vib_state_energy_all_pc,
+                                        monomer_qn_list0,
+                                        monomer_qn_list1);
 
-    d.dmat_diagonal_global0 = dmat_diagonal_global0;
-    d.dmat_diagonal_global1 = dmat_diagonal_global1;
+    d.dmat_diagonal_global0 = monomer1_vib_state_energy_all_pc;
+    d.dmat_diagonal_global1 = monomer2_vib_state_energy_all_pc;
 
-    construct_fullmatrix_with_energy_window_MPI();
+    construct_dimer_Hamiltonian_matrix_with_energy_window_MPI();
 
 	if(my_id ==0){
         cout<<"Finish constructing Matrix"<<endl;
-        dimension_check(); // check if all matrix's dimension is right.
+        output_calculation_size_info(); // check if all matrix's dimension is right.
 	}
+
 }
 
 // Doing Quantum Simulation with SUR algorithm, parallelized version.
-void full_system::Quantum_evolution( double & state_energy_for_record, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_survival_probability_list ,
-                                     vector<vector<double>> & monomer_vib_energy) {
+void full_system::Quantum_dynamics_evolution(double & state_energy_for_record, vector<double> & time_list, vector<double> & survival_probability_list, vector<double> & electronic_state_survival_probability_list ,
+                                             vector<vector<double>> & monomer_vib_energy) {
     // state_mode_list : record vibrational qn for initial state
-    // time_list: record time.  survival probability list: record survival probability.  electronic_survival_probability_list : record electronic survival probability
+    // time_list: record time.  survival probability list: record survival probability.  electronic_state_survival_probability_list : record electronic survival probability
 
     // ---------------- prepare variable for prepare evolution and call prepare_evolution ------------------------------
     int i, j, k,m;
@@ -47,6 +50,7 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
     if(my_id == initial_dimer_state_pc_id){
         initial_state_energy = mat[initial_dimer_state_index];
     }
+
     MPI_Bcast(&initial_state_energy, 1, MPI_DOUBLE, initial_dimer_state_pc_id, MPI_COMM_WORLD);
 
     // record the state energy
@@ -64,12 +68,12 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
         mat[i] = cf * mat[i];
     }
 
-	// Now we construct our wavefunction /phi for our detector and full_system.
-    d.initialize_detector_state_MPI(log); // initialize detector lower bright state
+	// Now we construct our wavefunction /phi for our monomer and full_system.
+    d.initialize_monomer_state_MPI(log); // initialize monomer lower bright state
 
-    Initial_state_MPI(); // construct initial state of whole system according to detector state and system state.
+    Initial_state_MPI(); // construct initial state of whole system according to monomer state and system state.
 
-    // prepare varibale for evolution.
+    // prepare variable for evolution.
     prepare_evolution();
 
     shift_mat();
@@ -86,7 +90,7 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
 
     // for computing survival probability
     double survival_prob = 0;
-    double electronic_survival_prob;
+    double electronic_state_survival_prob;
     double electronic_survival_prob_sum;
 
     vector<double> electronic_state_label_array;
@@ -99,6 +103,8 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
             // output result.
 		    // Normalize wave function.
 		    Normalize_wave_function();
+
+            // update wave function received from other process.
 		    update_x_y();
 
             // record time
@@ -114,24 +120,23 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
             survival_probability_list.push_back(survival_prob);
             // --------- end for code computing survival probability ------
 
-            // code for computing electronic survival probability
-            electronic_survival_prob = 0;
+            // --------------- code for computing survival probability in one potential energy surface
+            electronic_state_survival_prob = 0;
             for(i=0;i<matsize;i++){
-                electronic_survival_prob = electronic_survival_prob + ( pow(x[i],2) + pow(y[i], 2)) * electronic_state_label_array[i];
+                electronic_state_survival_prob = electronic_state_survival_prob + (pow(x[i], 2) + pow(y[i], 2)) * electronic_state_label_array[i];
             }
-            MPI_Allreduce(&electronic_survival_prob, &electronic_survival_prob_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-            electronic_survival_probability_list.push_back(electronic_survival_prob_sum);
-
-            //  end for code computing electronic survival probability.
+            MPI_Allreduce(&electronic_state_survival_prob, &electronic_survival_prob_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            electronic_state_survival_probability_list.push_back(electronic_survival_prob_sum);
+            // -----------------  end for code computing electronic survival probability.
 
             // code for computing vibrational energy in each monomer
             monomer1_vib_energy_each_pc = 0;
             monomer2_vib_energy_each_pc = 0;
             monomer1_vib_energy = 0;
             monomer2_vib_energy = 0;
-            for(i=0;i<matsize;i++){
-                monomer1_vib_energy_each_pc = monomer1_vib_energy_each_pc +  ( pow(x[i],2) + pow(y[i], 2)) *  dmat_diagonal_global0[ dstate[0][i] ];
-                monomer2_vib_energy_each_pc = monomer2_vib_energy_each_pc +  ( pow(x[i],2) + pow(y[i], 2)) * dmat_diagonal_global1[ dstate[1][i] ];
+            for(i = 0;i < matsize; i++){
+                monomer1_vib_energy_each_pc = monomer1_vib_energy_each_pc + ( pow(x[i],2) + pow(y[i], 2)) * monomer1_vib_state_energy_all_pc[ vibrational_state_index_list[0][i] ];
+                monomer2_vib_energy_each_pc = monomer2_vib_energy_each_pc + ( pow(x[i],2) + pow(y[i], 2)) * monomer2_vib_state_energy_all_pc[ vibrational_state_index_list[1][i] ];
             }
             MPI_Allreduce(&monomer1_vib_energy_each_pc, &monomer1_vib_energy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&monomer2_vib_energy_each_pc, &monomer2_vib_energy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -141,14 +146,15 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
 
         }
 
+        // evolve wave function one time step
         evolve_wave_func_one_step();
-
 
 		t = t + delt;
 	}
 
 	end_time = clock();
 	duration = end_time - start_time;
+
 	if(my_id == 0) {
         log << "The total run time for parallel computing is " << (double(duration) /CLOCKS_PER_SEC)/60 << " minutes  for simulation time  " << tmax << endl;
         cout << "The total run time for parallel computing is " << (double(duration)/CLOCKS_PER_SEC)/60 << " minutes  for simulation time  " << tmax << endl;
@@ -164,7 +170,5 @@ void full_system::Quantum_evolution( double & state_energy_for_record, vector<do
 	log.close();
 	output.close();
 	resource_output.close();
-
-
 
 }

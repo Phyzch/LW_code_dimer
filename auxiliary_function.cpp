@@ -8,12 +8,12 @@ using namespace std;
 namespace fs = std::experimental::filesystem;
 
 // check some dimension parameter
-void full_system::dimension_check() {
+void full_system::output_calculation_size_info() {
 
-    if (s.electronic_state_num == 1) {
-        output << "Global Matrix: 2*" << d.dmatsize[0] << " = " << matsize << endl;
+    if (s.exciton_state_num == 1) {
+        output << "Global Matrix: 2*" << d.monomer_matsize[0] << " = " << matsize << endl;
     }
-    else if (s.electronic_state_num == 2) {
+    else if (s.exciton_state_num == 2) {
         output << "Global Matrix: " << total_matsize << endl;
     }
     output << "off-diagonal matrix number  " << total_offnum << endl;
@@ -32,8 +32,8 @@ full_system::~full_system(){
     delete [] matsize_offset_each_process;
     delete [] matnum_offset_each_process;
 
-    delete [] dstate;
-    delete [] dstate_all;
+    delete [] vibrational_state_index_list;
+    delete [] vibrational_state_index_list_all;
 
     delete [] remoteVecCount;
     delete [] remoteVecPtr;

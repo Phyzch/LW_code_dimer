@@ -72,21 +72,25 @@ void full_system:: prepare_evolution(){
     tosendVecCount = new int [num_proc];
     tosendVecPtr = new int [num_proc];
     to_recv_buffer_len = construct_recvbuffer_index();
-    to_send_buffer_len= construct_send_buffer_index(remoteVecCount,remoteVecPtr,remoteVecIndex,
+    to_send_buffer_len = construct_send_buffer_index(remoteVecCount,remoteVecPtr,remoteVecIndex,
                                                     tosendVecCount,tosendVecPtr,tosendVecIndex);
+    // we add extra space at the end of wave function array x,y.
+    // Which will store the wave function elements received from other process through MPI.
     x.resize(matsize + to_recv_buffer_len);
     y.resize(matsize+ to_recv_buffer_len);
+
     recv_x = new double [to_recv_buffer_len];
     recv_y= new double [to_recv_buffer_len];
     send_x = new double[to_send_buffer_len];
     send_y= new double [to_send_buffer_len];
-    local_irow.reserve(matnum);
-    local_icol.reserve(matnum);
-    for(i=0;i<matnum;i++){
+
+    local_irow.reserve(matnum);  // row index for matrix multiplication in the single process.
+    local_icol.reserve(matnum);  // col index for matrix multiplication in the single process.
+    for(i = 0;i < matnum; i++){
         local_irow.push_back(irow[i] - matsize_offset_each_process[my_id]);
         col_index_for_search = icol[i];
         search_Ind = (int *)bsearch(&col_index_for_search,remoteVecIndex,to_recv_buffer_len,sizeof(int),compar);
-        if (search_Ind!=NULL){
+        if (search_Ind != NULL){
             // this column element is in remote vector:
             local_icol.push_back(matsize + (search_Ind - remoteVecIndex));
         }
@@ -95,7 +99,7 @@ void full_system:: prepare_evolution(){
             local_icol.push_back(icol[i] - matsize_offset_each_process[my_id]);
         }
     }
-    sleep(1);
+
 }
 
 void full_system:: full_system_SUR_one_step()
@@ -168,15 +172,19 @@ void full_system::update_y(){
 }
 
 void full_system:: evolve_wave_func_one_step(){
+    // We can also use Chebyshev method here. But here we use SUR algorithm which gets the job done.
     int i, j, irow_index, icol_index;
-    // update tosend_xd for sending  to other process
+    // update imaginary part of wave function received from other process.
     update_y();
-    // SUR algorithm
+
+    // SUR algorithm. (https://doi.org/10.1016/0009-2614(94)01474-A)
     for(i=0;i<matnum;i++){
         irow_index = local_irow[i];
         icol_index= local_icol[i];
         x[irow_index] = x[irow_index] + mat[i] * y[icol_index];
     }
+
+    // update real part of wave function received from other process.
     update_x();
     for(i=0;i<matnum;i++){
         irow_index=local_irow[i];

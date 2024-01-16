@@ -85,15 +85,16 @@ int main(int argc,char * argv []) {
 
             vector<vector<double>> vibrational_energy_list;
 
-            full_system photon_entangled_system(path , state_quantum_number);  // set parameter and construct Hamiltonian.
+            full_system dimer_model(path , state_quantum_number);  // set parameter and construct Hamiltonian.
 
             // compute Nloc for each state.
-            photon_entangled_system.compute_local_density_of_state(coupling_state_index_list, coupling_state_qn_list,
-                                                                   coupling_state_strength_list, coupling_state_energy_diff_list, effective_coupling_number_list);
+//            dimer_model.compute_local_density_of_state(coupling_state_index_list, coupling_state_qn_list,
+//                                                       coupling_state_strength_list, coupling_state_energy_diff_list, effective_coupling_number_list);
 
 
-            photon_entangled_system.Quantum_evolution(state_energy, time_list, survival_prob_list, electronic_survival_prob_list,
-                                                      vibrational_energy_list); // creat initial state (or read from file). Then complete simulation.
+            dimer_model.Quantum_dynamics_evolution(state_energy, time_list, survival_prob_list,
+                                                   electronic_survival_prob_list,
+                                                   vibrational_energy_list); // creat initial state (or read from file). Then complete simulation.
 
 
             state_energy_list.push_back(state_energy);
@@ -119,10 +120,10 @@ int main(int argc,char * argv []) {
     output_survival_prob(path, state_quantum_number_list, state_energy_list, time_list_all_states, survival_prob_list_all_states,
                          electronic_survival_prob_list_all_states);
 
-    output_Nloc_for_vibrational_dimer_states( path , state_quantum_number_list,
-            state_energy_list, coupling_state_index_list,
-            coupling_state_qn_list, coupling_state_strength_list,
-            coupling_state_energy_diff_list, effective_coupling_number_list);
+//    output_Nloc_for_vibrational_dimer_states( path , state_quantum_number_list,
+//            state_energy_list, coupling_state_index_list,
+//            coupling_state_qn_list, coupling_state_strength_list,
+//            coupling_state_energy_diff_list, effective_coupling_number_list);
 
     output_vibrational_energy_dimer_states(path, state_quantum_number_list, state_energy_list, time_list_all_states,
                                            vibrational_energy_list_all_states);

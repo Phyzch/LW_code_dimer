@@ -16,5 +16,4 @@ system::~system(){
     delete [] x_electronic;
     delete [] y_electronic;
     delete [] electronic_state_energy;
-    delete [] tlmat;
 }

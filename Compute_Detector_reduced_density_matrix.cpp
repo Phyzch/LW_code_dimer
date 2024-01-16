@@ -1,7 +1,7 @@
 //
 // Created by phyzch on 6/19/20.
 // Implement code to speed up calculation of reduced density matrix.
-// Ideally if we only compute energy of detector, the cost will be O( matsize)
+// Ideally if we only compute energy of monomer, the cost will be O( matsize)
 //
 #include "system.h"
 #include"util.h"
@@ -35,12 +35,12 @@ int compare_quotient_state(int sys_state1, const vector <int>  & vmode1, int sys
     return 0;
 }
 
-// method to use find_location_binary : create a list vector <quotient_state>. When we construct quantum state
-// for example, to compute reduced density matrix for Detector 1, we construct quotient Hilbert space of Hilbert space H_{d1}
-// for record corresponding x[state] and dx[state] corresponding to this quotient space state d1. (in xindex and dxindex).
+// method to use find_location_binary : create a list vector <quotient_state>.
+// for example, to compute reduced density matrix for monomer 1, we construct quotient Hilbert space of Hilbert space H_{d1}
+// record  x[state] and dx[state] corresponding to this quotient space state d1. (in full_hamiltonian_state_index_list and monomer_state_index_list).
 int find_location_binarysearch_quotient_state(const vector<quotient_state> & list, int sys_state, const vector <int> & vmode, bool & exist){
     // used to sort quotient state list. return location to insert or manipulate, also return exist to indicate this quotient_state exist in list or not
-    // use information of sys_state and vmode to locate the state.
+    // use information of exciton_state_index_list and vmode to locate the state.
     // use binary search method.
     int right_flag= list.size()-1; // this step is crucial for binary search.
     int left_flag= 0;
@@ -52,7 +52,7 @@ int find_location_binarysearch_quotient_state(const vector<quotient_state> & lis
     exist =false;
     int mark;
     while(left_flag < right_flag){
-        mark = compare_quotient_state(sys_state,vmode, list[position].sys_state, list[position].vmode);
+        mark = compare_quotient_state(sys_state, vmode, list[position].exciton_state, list[position].vmode);
         if(mark== 1){
             // state > list[position]
             left_flag=position+1;
@@ -68,7 +68,7 @@ int find_location_binarysearch_quotient_state(const vector<quotient_state> & lis
         }
     }
     // Now situation is left_flag == right_flag == position or position == right_flag == left_flag -1. either case we compare list[position] with our state
-    mark =  compare_quotient_state(sys_state,vmode, list[position].sys_state, list[position].vmode);
+    mark =  compare_quotient_state(sys_state, vmode, list[position].exciton_state, list[position].vmode);
     if( mark == 0 ){
         exist =true;
         return position; // return the position
@@ -89,14 +89,14 @@ int compare_int(int a, int b){
     else return 0;
 }
 
-int binary_search_dxindex(const vector <int> & list, int key, bool & exist){
+int binary_search_monomer_state_index(const vector <int> & list, int key, bool & exist){
     // search key in list. If exist, set exist to true, else set to false.
     // return position of key if found.
     int left_flag=0;
     int right_flag = list.size()-1;
     exist=false;
     if(list.size()==0){
-        cout<<"error! The quotient_state when initialized should have non-null xindex and dxindex" <<endl;
+        cout<<"error! The quotient_state when initialized should have non-null full_hamiltonian_state_index_list and monomer_state_index_list" <<endl;
         exit(-7);
     }
     int position = (left_flag + right_flag)/2;
@@ -122,7 +122,7 @@ int binary_search_dxindex(const vector <int> & list, int key, bool & exist){
 
 int binary_insert_dxindex(vector <int> & list, int key){
     // insert key into list.
-    // we do not allow key already in list, if we find that, we report error.  (That's because for one quotient state we can't store same detector state index and state index twice if program is right.)
+    // we do not allow key already in list, if we find that, we report error.  (That's because for one quotient state we can't store same monomer state index and state index twice if program is right.)
     int left_flag=0;
     int right_flag = list.size()-1;
     if(list.size()==0){
@@ -161,29 +161,39 @@ int binary_insert_dxindex(vector <int> & list, int key){
     }
 }
 
-void insert_quotient_state(vector <quotient_state> & list, int sys_state, vector<int> & vmode1, int xindex, int dxindex) {
-    // dxindex: index in detector wavefunction for state in Hilbert space d.
-    // xindex: index in photon + detector full system wave function.
-    // sorting according to state in another monomer & sys_state.
+void insert_quotient_state(vector <quotient_state> & quotient_states_list, int exciton_state, vector<int> & vmode1, int full_hamiltonian_state_index, int monomer_state_index) {
+    // monomer_state_index_list: index in monomer wavefunction for states in Hilbert space d.
+    // full_hamiltonian_state_index_list: index in the whole system's wave function. (exciton state + monomer 1 vib state + monomer 2 vib state)
+
+    // take quotient states for monomer1 for example.
+    // vmode1: vibrational states in monomer2.  exciton_state_index_list: 0 / 1, representing different exciton state (different potential energy surface)
+
+
     bool exist;
-    int position; // position to insert.
-    int dxposition; // position to insert xindex, it should be at same position
-    // convert vmode to vector int
+    int quotient_state_position; // quotient_state_position to insert.
+    int monomer_state_index_position; // quotient_state_position to insert full_hamiltonian_state_index_list, it should be at the same quotient_state_position
+
+    // copy vmode1 to vmode
     vector<int> vmode;
-    vmode=vmode1;
-    position=find_location_binarysearch_quotient_state(list,sys_state,vmode,exist); // find state marked by (sys_state, vmode) if it exist in list.
+    vmode = vmode1;
+
+    // find whether the <quotient state> defined by pair (exciton_state_index_list, vmode) is already in the quotient_state_list
+    quotient_state_position = find_location_binarysearch_quotient_state(quotient_states_list, exciton_state, vmode, exist); // find state marked by (exciton_state_index_list, vmode) if it exist in quotient_states_list.
+
     if(!exist){
-        // quotient state does not exist before. We have to construct it and insert it into quotient_state list.
-        quotient_state s (vmode,sys_state); // construct quotient_state
-        dxposition=binary_insert_dxindex(s.dxindex, dxindex); // insert dx detector index into list with order.
-        s.xindex.insert(s.xindex.begin() + dxposition,xindex); // insert x state index into list at same position as dxindex.
+        // quotient state does not exist before. We have to construct it and insert it into quotient_state quotient_states_list.
+        quotient_state s (vmode, exciton_state); // construct quotient_state
+        monomer_state_index_position = binary_insert_dxindex(s.monomer_state_index_list, monomer_state_index ); // insert monomer state index into quotient_states_list with order.
+        s.full_hamiltonian_state_index_list.insert(s.full_hamiltonian_state_index_list.begin() + monomer_state_index_position, full_hamiltonian_state_index);
+        // insert full hamiltonian state index into quotient_states_list at the same position as the monomer state index in  monomer_state_index_list.
 
-        list.insert(list.begin() +  position, s);
+        // insert quotient state s to the quotient state list in the position: quotient_state_position
+        quotient_states_list.insert(quotient_states_list.begin() + quotient_state_position, s);
     }
-    else{  // we have to insert xindex and dxindex into our state.
-        dxposition=binary_insert_dxindex(list[position].dxindex, dxindex);
+    else{  // we have to insert full_hamiltonian_state_index_list and monomer_state_index_list into our quotient state which is already in the quotient_state_list.
+        monomer_state_index_position = binary_insert_dxindex(quotient_states_list[quotient_state_position].monomer_state_index_list, monomer_state_index);
 
-        list[position].xindex.insert(list[position].xindex.begin() +dxposition, xindex );  // list[position] play same role as s.
+        quotient_states_list[quotient_state_position].full_hamiltonian_state_index_list.insert(quotient_states_list[quotient_state_position].full_hamiltonian_state_index_list.begin() + monomer_state_index_position, full_hamiltonian_state_index );  // quotient_states_list[quotient_state_position] play same role as s.
     }
 }
 
@@ -197,25 +207,25 @@ void save_detector_quotient_state_data( const vector <quotient_state> & dlist, o
     save<< listsize << " "<< moddim <<endl;
     for(i=0;i<listsize;i++){
         // go through quotient_state d
-        // sys_state.  vmode.  x_index_length, xindex,  dxindex.  q_index_list
-        save<< dlist[i].sys_state<<" ";
+        // exciton_state_index_list.  vmode.  x_index_length, full_hamiltonian_state_index_list,  monomer_state_index_list.  anharmonic_coupling_info_index_list
+        save << dlist[i].exciton_state << " ";
         for(j=0;j<moddim;j++){
             save<< dlist[i].vmode[j]<<" ";
         }
-        xindex_size=dlist[i].xindex.size();
+        xindex_size=dlist[i].full_hamiltonian_state_index_list.size();
         save<< xindex_size<<" ";
         for(j=0;j<xindex_size;j++){
-            save<<dlist[i].xindex[j]<<" ";
+            save << dlist[i].full_hamiltonian_state_index_list[j] << " ";
         }
         for(j=0;j<xindex_size;j++){
-            save<< dlist[i].dxindex[j]<<" ";
+            save << dlist[i].monomer_state_index_list[j] << " ";
         }
-        // output q_index_list.
-        q_index_list_size= dlist[i].q_index_list.size();
+        // output anharmonic_coupling_info_index_list.
+        q_index_list_size= dlist[i].anharmonic_coupling_info_index_list.size();
         save<< q_index_list_size<<" ";
         for(j=0;j<q_index_list_size;j++){
             for(k=0;k<q_index_size;k++){
-                save << dlist[i].q_index_list[j][k] <<" ";
+                save << dlist[i].anharmonic_coupling_info_index_list[j][k] << " ";
             }
         }
         save<<endl;
@@ -253,11 +263,11 @@ void load_detector_quotient_state_data(vector <quotient_state> & dlist, ifstream
         load >> xindex_length;
         for (j = 0; j < xindex_length; j++) {
             load >> var;
-            s.xindex.push_back(var);
+            s.full_hamiltonian_state_index_list.push_back(var);
         }
         for (j = 0; j < xindex_length; j++) {
             load >> var;
-            s.dxindex.push_back(var);
+            s.monomer_state_index_list.push_back(var);
         }
         load >> q_index_list_size;
         for (j = 0; j < q_index_list_size; j++) {
@@ -266,7 +276,7 @@ void load_detector_quotient_state_data(vector <quotient_state> & dlist, ifstream
                 load >> var;
                 q_index.push_back(var);
             }
-            s.q_index_list.push_back(q_index);
+            s.anharmonic_coupling_info_index_list.push_back(q_index);
         }
         dlist.push_back(s);
         std::getline(load, ss);

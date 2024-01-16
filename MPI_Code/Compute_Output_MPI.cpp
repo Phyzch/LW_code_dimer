@@ -14,7 +14,7 @@ void full_system:: etot_MPI(double * hx, double * hy){
     double total_test=0;
     double local_e=0;
     double local_e_add = 0;
-    norm=0;
+    norm = 0 ;
     total_norm=0;
     // update tosend_xd, tosend_yd to send data to other process
     update_x_y();
@@ -65,7 +65,7 @@ void full_system :: generate_label_for_electronic_survival_prob_calculation(vect
     int i,j, k;
     double electronic_state_label;
     for(i=0;i<matsize;i++){
-        if(sstate[i] == 0){
+        if(exciton_state_index_list[i] == 0){
             electronic_state_label = 1;
         }
         else{

@@ -5,7 +5,7 @@
 #include "../util.h"
 using namespace std;
 
-int  detector::construct_receive_buffer_index(int * remoteVecCount_element, int * remoteVecPtr_element, int * remoteVecIndex_element, int detector_index){
+int  monomer::construct_receive_buffer_index(int * remoteVecCount_element, int * remoteVecPtr_element, int * remoteVecIndex_element, int detector_index){
     // input: remoteVecCount: total number of element need to receive from each process.
     //        remoteVecPtr: displacement in remoteVecIndex for element in each process.
     //        remoteVecIndex: index for remote vector we need to receive. (they may allocate in different remote process.)
@@ -14,18 +14,18 @@ int  detector::construct_receive_buffer_index(int * remoteVecCount_element, int 
     int i,j;
     // range for element in process is [local_begin, local_end)
     int total_remoteVecCount=0;
-    int vsize = total_dmat_size[detector_index] / num_proc;
-    int local_begin= total_dmat_size[detector_index] / num_proc * my_id;
+    int vsize = total_monomer_mat_size[detector_index] / num_proc;
+    int local_begin= total_monomer_mat_size[detector_index] / num_proc * my_id;
     int local_end;
     int remote_pc_id;
     if(my_id!=num_proc-1) {
-        local_end = total_dmat_size[detector_index] / num_proc * (my_id + 1);
+        local_end = total_monomer_mat_size[detector_index] / num_proc * (my_id + 1);
     }
     else{
-        local_end = total_dmat_size[detector_index];
+        local_end = total_monomer_mat_size[detector_index];
     }
     // ---------------------------------------------------------------
-    vector <int> col_index_copy = dicol[detector_index];
+    vector <int> col_index_copy = monomer_icol[detector_index];
     sort(col_index_copy.begin(),col_index_copy.end()); // sort vector.
     int col_array_size = col_index_copy.size();
     int prev_col=-1;
@@ -89,7 +89,7 @@ int compar(const void * a, const void * b){
 }
 
 // this function is called every time we do evolution
-void detector::prepare_evolution(){
+void monomer::prepare_evolution(){
     // compute buffer to receive and send for each process.
     // resize xd,yd to provide extra space for recv_buffer.
     // allocate space for send_xd , send_yd buffer.
@@ -109,7 +109,7 @@ void detector::prepare_evolution(){
     for (m=0; m < electronic_state_num; m++){
         remoteVecCount[m] = new int [num_proc];
         remoteVecPtr[m] = new int [num_proc];
-        remoteVecIndex[m] = new int [dmatnum[m]];
+        remoteVecIndex[m] = new int [monomer_matnum[m]];
         for(i=0;i<num_proc;i++){
             remoteVecCount[m][i] = 0;
         }
@@ -134,41 +134,41 @@ void detector::prepare_evolution(){
     send_xd= new double * [electronic_state_num];
     send_yd = new double *[electronic_state_num];
     for(m=0; m < electronic_state_num; m++){
-        vsize= total_dmat_size[m]/num_proc;
+        vsize= total_monomer_mat_size[m] / num_proc;
         to_recv_buffer_len[m] = construct_receive_buffer_index(remoteVecCount[m],remoteVecPtr[m],
                 remoteVecIndex[m],m);  // construct buffer to receive.
         to_send_buffer_len[m]= construct_send_buffer_index(remoteVecCount[m],remoteVecPtr[m],remoteVecIndex[m],
                                                         tosendVecCount[m],tosendVecPtr[m], tosendVecIndex[m]);
-        xd[m].resize(dmatsize[m] + to_recv_buffer_len[m]);
-        yd[m].resize(dmatsize[m] + to_recv_buffer_len[m]);
+        xd[m].resize(monomer_matsize[m] + to_recv_buffer_len[m]);
+        yd[m].resize(monomer_matsize[m] + to_recv_buffer_len[m]);
         recv_xd[m] = new double [to_recv_buffer_len[m]];
         recv_yd[m]= new double [to_recv_buffer_len[m]];
         send_xd[m]= new double [to_send_buffer_len[m]];
         send_yd[m] = new double [to_send_buffer_len[m]];
         // construct local_dirow, local_dicol
-        local_dicol[m].reserve(dmatnum[m]);
-        local_dirow[m].reserve(dmatnum[m]);
-        for(i=0;i<dmatnum[m];i++){
-            local_dirow[m].push_back(dirow[m][i] - my_id * vsize);  // set local index for row index
-            col_index_to_search= dicol[m][i];
+        local_dicol[m].reserve(monomer_matnum[m]);
+        local_dirow[m].reserve(monomer_matnum[m]);
+        for(i=0; i < monomer_matnum[m]; i++){
+            local_dirow[m].push_back(monomer_irow[m][i] - my_id * vsize);  // set local index for row index
+            col_index_to_search= monomer_icol[m][i];
             search_Ind=(int *) bsearch(&col_index_to_search,remoteVecIndex[m],to_recv_buffer_len[m],sizeof(int),compar);
             if(search_Ind!=NULL){
                 // this column index is not in local matrix, and we should get it from other process (remoteVec)
-                local_dicol[m].push_back(dmatsize[m] + (search_Ind-remoteVecIndex[m]) );
+                local_dicol[m].push_back(monomer_matsize[m] + (search_Ind - remoteVecIndex[m]) );
             }
             else{ // this column index is in local matrix.
-                local_dicol[m].push_back (dicol[m][i] - my_id * vsize );
+                local_dicol[m].push_back (monomer_icol[m][i] - my_id * vsize );
             }
         }
     }
 
 }
-void detector::update_dx_dy(int detector_index){
+void monomer::update_dx_dy(int detector_index){
     int i,m;
     int vsize;
     m= detector_index;
     // collect data for send_buffer.
-    vsize = total_dmat_size[m]/num_proc;
+    vsize = total_monomer_mat_size[m] / num_proc;
     for (i = 0; i < to_send_buffer_len[m]; i++) {
         send_xd[m][i] = xd[m][tosendVecIndex[m][i] - my_id * vsize];
         send_yd[m][i] = yd[m][tosendVecIndex[m][i] - my_id * vsize];
@@ -181,30 +181,30 @@ void detector::update_dx_dy(int detector_index){
 
     // copy received array to xd, yd:  This part may be optimized for example directly send result in xd, yd.
     for(i=0;i<to_recv_buffer_len[m];i++){
-        xd[m][i+ dmatsize[m]]= recv_xd[m][i];
-        yd[m][i+ dmatsize[m]]= recv_yd[m][i];
+        xd[m][i + monomer_matsize[m]]= recv_xd[m][i];
+        yd[m][i + monomer_matsize[m]]= recv_yd[m][i];
     }
 
 }
-// call it every time we do SUR algorithm. do it for detector specified by detector_index.
-void detector::SUR_onestep_MPI(int detector_index, double cf){
+// call it every time we do SUR algorithm. do it for monomer specified by detector_index.
+void monomer::SUR_onestep_MPI(int detector_index, double cf){
     int m,i;
     int irow,icol;
     m = detector_index;
     update_dx_dy(detector_index);
-    for(i=0;i<dmatnum[m];i++){
+    for(i=0; i < monomer_matnum[m]; i++){
         // make sure when we compute off-diagonal matrix, we record both symmetric and asymmetric part
         irow = local_dirow[m][i];
         icol = local_dicol[m][i]; // compute to point to colindex in
-        xd[m][irow] = xd[m][irow] + dmat[m][i] * yd[m][icol] * cf;
+        xd[m][irow] = xd[m][irow] + monomer_mat[m][i] * yd[m][icol] * cf;
     }
 
     update_dx_dy(detector_index);
 
-    for(i=0;i<dmatnum[m];i++){
+    for(i=0; i < monomer_matnum[m]; i++){
         irow= local_dirow[m][i];
         icol= local_dicol[m][i];
-        yd[m][irow] = yd[m][irow] - dmat[m][i] * xd[m][icol] * cf;
+        yd[m][irow] = yd[m][irow] - monomer_mat[m][i] * xd[m][icol] * cf;
     }
 }
 
@@ -217,9 +217,9 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
     int steps;
     double detector_tprint = 0.01;
     int output_step= int(detector_tprint/delt); //Output every output_step.
-    double * start_time = new double [s.electronic_state_num];
-    double * final_time = new double [s.electronic_state_num];
-    for(i=0;i<s.electronic_state_num; i++){
+    double * start_time = new double [s.exciton_state_num];
+    double * final_time = new double [s.exciton_state_num];
+    for(i=0;i<s.exciton_state_num; i++){
         start_time[i]=0;
     }
     ofstream Detector_precoup_mode_quanta;
@@ -247,30 +247,30 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
 
     //---------- Allocate space for mode quanta -------------------------------------------
     double ** total_mode_quanta;
-    total_mode_quanta= new double * [s.electronic_state_num];
-    for(m=0;m<s.electronic_state_num; m++){
+    total_mode_quanta= new double * [s.exciton_state_num];
+    for(m=0;m<s.exciton_state_num; m++){
         total_mode_quanta[m]= new double [d.nmodes[m]];
     }
 
-    double ** mode_quanta= new double * [s.electronic_state_num];
-    for (m=0;m<s.electronic_state_num; m++){
+    double ** mode_quanta= new double * [s.exciton_state_num];
+    for (m=0;m<s.exciton_state_num; m++){
         mode_quanta[m]= new double [d.nmodes[m]];
     }
-    //--------------Prepare to output detector bright/initial state  -----------------
-    special_state=d.initial_detector_state;
+    //--------------Prepare to output monomer bright/initial state  -----------------
+    special_state=d.initial_vibrational_state;
 
-    special_state_pc_id = new int [s.electronic_state_num];  // record process id that record special state wave function.
-    special_state_index = new int [s.electronic_state_num]; // index for special state in process: special_state_pc_id.
-    special_state_x = new double [s.electronic_state_num];
-    special_state_y= new double [s.electronic_state_num];
+    special_state_pc_id = new int [s.exciton_state_num];  // record process id that record special state wave function.
+    special_state_index = new int [s.exciton_state_num]; // index for special state in process: special_state_pc_id.
+    special_state_x = new double [s.exciton_state_num];
+    special_state_y= new double [s.exciton_state_num];
     bool * exist_bool_for_pc = new bool [num_proc];
 
-    for(m=0;m<s.electronic_state_num; m++){
+    for(m=0;m<s.exciton_state_num; m++){
         vector <int> vec_special_state;
         for(i=0;i<d.nmodes[m]; i++){
             vec_special_state.push_back(special_state[m][i]);
         }
-        position=find_position_for_insert_binary(d.dv[m],vec_special_state,exist);
+        position=find_position_for_insert_binary(d.monomer_vibrational_states_quantum_number_list[m], vec_special_state, exist);
         MPI_Allgather(&exist,1,MPI_C_BOOL,&exist_bool_for_pc[0],1,MPI_C_BOOL,MPI_COMM_WORLD);
         special_state_pc_id [m] = -1;
 
@@ -293,20 +293,20 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
     // -----------------------------------------------------------------------------------------------
     // prepare sendbuffer and recv_buffer and corresponding index.
     d.prepare_evolution();
-    vector<complex<double>> * H_phi = new vector<complex<double>> [s.electronic_state_num];
+    vector<complex<double>> * H_phi = new vector<complex<double>> [s.exciton_state_num];
     double de;
     double de_all;
-    for(m=0;m<s.electronic_state_num; m++) {
-        H_phi[m].resize(d.dmatsize[m]);
-        for(i=0;i<d.dmatsize[m];i++){
+    for(m=0;m<s.exciton_state_num; m++) {
+        H_phi[m].resize(d.monomer_matsize[m]);
+        for(i=0;i<d.monomer_matsize[m]; i++){
             H_phi[m][i] = 0;
         }
     }
-    for(m=0;m<s.electronic_state_num; m++){
+    for(m=0;m<s.exciton_state_num; m++){
         final_time[m]=0;
         if(d.proptime[m]>0){
             if(my_id==0){
-                log <<" Pre-propogation for detector  "<<m<<endl;
+                log <<" Pre-propogation for monomer  "<<m<<endl;
             }
             t=0;
             steps= d.proptime[m]/delt + 1;
@@ -321,14 +321,14 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
             for(k=0;k<steps;k++){
                 //-------------------- output result ----------------------------
                 if(k % output_step ==0) {
-                    // ---------------------------------output detector mode quanta -------------------------------------------------
+                    // ---------------------------------output monomer mode quanta -------------------------------------------------
                     for (j = 0; j < d.nmodes[m]; j++) {
                         mode_quanta[m][j] = 0;
                     }
-                    for (i = 0; i < d.dmatsize[m]; i++) {
+                    for (i = 0; i < d.monomer_matsize[m]; i++) {
                         for (j = 0; j < d.nmodes[m]; j++) {
                             mode_quanta[m][j] =
-                                    mode_quanta[m][j] + (pow(d.xd[m][i], 2) + pow(d.yd[m][i], 2)) * d.dv[m][i][j];
+                                    mode_quanta[m][j] + (pow(d.xd[m][i], 2) + pow(d.yd[m][i], 2)) * d.monomer_vibrational_states_quantum_number_list[m][i][j];
                         }
                     }
                     MPI_Reduce(&mode_quanta[m][0], &total_mode_quanta[m][0], d.nmodes[m], MPI_DOUBLE, MPI_SUM, 0,
@@ -341,7 +341,7 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
                         Detector_precoup_mode_quanta << endl;
                     }
 
-                    //---------------------- output detector special state (excited bright state or lower bright state)-
+                    //---------------------- output monomer special state (excited bright state or lower bright state)-
                     if (my_id == special_state_pc_id[m]) {
                             special_state_x[m] = d.xd[m][special_state_index[m]];
                             special_state_y[m] = d.yd[m][special_state_index[m]];
@@ -357,17 +357,17 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
                         Detector_precoup_output << special_state_y[m] << endl;
                     }
                     //--------------------------------------------------------------------------------------------------
-                    // compute detector energy
-                    for(i=0;i<d.dmatsize[m];i++) {
+                    // compute monomer energy
+                    for(i=0;i<d.monomer_matsize[m]; i++) {
                         H_phi[m][i]=0;
                     }
-                    for(i=0;i<d.dmatnum[m];i++){
+                    for(i=0;i<d.monomer_matnum[m]; i++){
                         irow_index = d.local_dirow[m][i];
                         icol_index = d.local_dicol[m][i]; // compute to point to colindex in
-                        H_phi[m][irow_index] = H_phi[m][irow_index] + d.dmat[m][i] * complex(d.xd[m][icol_index],d.yd[m][icol_index]);
+                        H_phi[m][irow_index] = H_phi[m][irow_index] + d.monomer_mat[m][i] * complex(d.xd[m][icol_index], d.yd[m][icol_index]);
                     }
                     de=0;
-                    for(i=0;i<d.dmatsize[m];i++){
+                    for(i=0;i<d.monomer_matsize[m]; i++){
                         de= de+ real(H_phi[m][i] * complex(d.xd[m][i],-d.yd[m][i]));
                     }
                     MPI_Allreduce(&de,&de_all,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
@@ -397,7 +397,7 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
         Detector_energy.close();
     }
     // -------------- free remote_Vec_Count, remote_Vec_Index -------------------------
-    for(i=0;i<s.electronic_state_num; i++){
+    for(i=0;i<s.exciton_state_num; i++){
         delete [] d.remoteVecCount[i];
         delete [] d.remoteVecPtr[i];
         delete []  d.remoteVecIndex[i];
@@ -437,7 +437,7 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
     delete [] d.local_dicol;
 
     if(initial_state_choice ==1){
-        // if we simulate bright state, we will delete x[] ,y [] in case we may want to simulate detector lower bright state later.
+        // if we simulate bright state, we will delete x[] ,y [] in case we may want to simulate monomer lower bright state later.
         delete [] d.xd;
         delete [] d.yd;
     }

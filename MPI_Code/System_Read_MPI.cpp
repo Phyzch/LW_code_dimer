@@ -12,18 +12,18 @@ void system::read_MPI(ifstream &input, ofstream &output, ofstream &log) {
     if(my_id==0) {
         // only process 0 will do I/O here.
         // read number of detectors. typically 1 or 2.
-        input >> electronic_state_num;
-        if (electronic_state_num != 1 && electronic_state_num != 2) {
+        input >> exciton_state_num;
+        if (exciton_state_num != 1 && exciton_state_num != 2) {
             log << "TLM NUMBER NOT SUPPORTED" << endl;
             input.close();
             log.close();
             output.close();
-            exit(-5 ); // electronic_state_num is not right.
+            exit(-5 ); // exciton_state_num is not right.
         }
-        output << "electronic_state_num " << electronic_state_num << " ";
+        output << "exciton_state_num " << exciton_state_num << " ";
     }
-    MPI_Bcast(&electronic_state_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    tlmatsize = electronic_state_num;  // system wave function array size.
+    MPI_Bcast(&exciton_state_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    tlmatsize = exciton_state_num;  // system wave function array size.
 
     allocate_space();
 
@@ -39,10 +39,9 @@ void system::allocate_space(){
     // x_electronic: real part of system wave function
     // y_electronic: image part of system wave function
     // electronic_state_energy: energy level of system's eigen state, also diagonal part of our Hamiltonian matrix
-    x_electronic = new double[electronic_state_num];
-    y_electronic = new double[electronic_state_num];
-    electronic_state_energy = new double[electronic_state_num];
-    tlmat = new double[electronic_state_num];
+    x_electronic = new double[exciton_state_num];
+    y_electronic = new double[exciton_state_num];
+    electronic_state_energy = new double[exciton_state_num];
 }
 
 void system::initialize_energy_level(ifstream & input, ofstream & output){
@@ -51,14 +50,14 @@ void system::initialize_energy_level(ifstream & input, ofstream & output){
     int my_id;
     MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
     if(my_id==0) {
-        for (i = 0; i < electronic_state_num; i++) {
+        for (i = 0; i < exciton_state_num; i++) {
             input >> electronic_state_energy [i];
             output << electronic_state_energy [i] << " ";
         }
         output << endl;
     }
     // broadcast electronic_state_energy to all other process. (Variable in class system is all very small, do not have to data decomposition).
-    MPI_Bcast(electronic_state_energy, electronic_state_num, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(electronic_state_energy, exciton_state_num, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }
 
 void system::initialize_wavefunction(ifstream & input, ofstream & output){
@@ -68,6 +67,8 @@ void system::initialize_wavefunction(ifstream & input, ofstream & output){
 
     if(my_id==0) {
         for (i = 0; i < tlmatsize; i++) {
+            // x_electronic: real part of wave function.
+            // y_electronic: imag part of wave function
             input >> x_electronic[i] >> y_electronic[i];
             output << x_electronic[i] << " " << y_electronic[i] << endl;
             norm = norm + pow(x_electronic[i], 2) + pow(y_electronic[i], 2);
@@ -86,8 +87,5 @@ void system::initialize_state_energy(){
     // initialize energy of system state.
     int i,j;
 
-    for (i = 0; i < tlmatsize; i++) {
-        tlmat[i] = electronic_state_energy[i];
-    }
 
 }

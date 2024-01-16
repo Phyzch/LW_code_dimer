@@ -8,62 +8,40 @@ vector<quotient_state> merge_d1list(vector<quotient_state> & qlist1, vector<quot
 
 void full_system::construct_quotient_state_all_MPI(){
     int i;
-    vector<sys_quotient_state> unsorted_slist;
 
     for(i=0;i<matsize;i++) {
-        insert_quotient_state(d1list, sstate[i], d.dv_all[1][dstate[1][i]],  irow[i], dstate[0][i]);
-        // d2list is already sorted because each process are gauranteed to be sorted individually.
-        insert_quotient_state(d2list, sstate[i], d.dv_all[0][dstate[0][i]],  irow[i], dstate[1][i]);
+        insert_quotient_state(monomer1_quotient_state_list, exciton_state_index_list[i], d.monomer_vibrational_states_all[1][vibrational_state_index_list[1][i]], irow[i], vibrational_state_index_list[0][i]);
+        // monomer2_quotient_state_list is already sorted because each process are gauranteed to be sorted individually.
+        insert_quotient_state(monomer2_quotient_state_list, exciton_state_index_list[i], d.monomer_vibrational_states_all[0][vibrational_state_index_list[0][i]], irow[i], vibrational_state_index_list[1][i]);
     }
     //------------------------------------------------------------------
-    // For d1list, it is marked by (detector2 state, system state). because each process only have a fraction of detector 1 state but all detector 2 state, the d1list constructed is incomplete and only contain part of detector 1 in dxindex.
-    rearrange_d1list();
+    // For monomer1_quotient_state_list, it is marked by (detector2 state, system state). because each process only have a fraction of monomer 1 state but all monomer 2 state, the monomer1_quotient_state_list constructed is incomplete and only contain part of monomer 1 in monomer_state_index_list.
+    rearrange_monomer1list();
 
-    for(i=0;i<total_matsize; i++){
-        // we have to use dstate_all and sstate_all, as it corresponds to all full_system states instead of state in one process.
-        // d2list_all is used to search full matrix index. (each process can search by themselves without communicating with each other.)
-        insert_quotient_state(d2list_all, sstate_all[i], d.dv_all[0][ dstate_all[0][i] ], i , dstate_all[1][i]);
-        insert_quotient_state(d1list_all, sstate_all[i], d.dv_all[1][ dstate_all[1][i] ], i , dstate_all[0][i]);
-    }
-
-    for(i=0;i<matsize;i++){
-        //---------------------------------------------------------------------------
-        // slist: quotient system state list for photon system.
-        // we will use slist to compute energy of photon and construct off diagonal matrix.
-        //insert_sys_quotient_state(slist,vmode0[dstate[0][i]],vmode1[dstate[1][i]],d.moddim,irow[i],sstate[i],dstate[0][i], dstate[1][i]);
-        sys_quotient_state sq(d.dv_all[0][dstate[0][i]],d.dv_all[1][dstate[1][i]],dstate[0][i],dstate[1][i]);
-        sq.xindex.push_back(irow[i]);
-        sq.sysxindex.push_back(sstate[i]);
-        unsorted_slist.push_back(sq);
-    }
-    // now sort slist using merge_sort
-    slist= merge_sort_list(unsorted_slist);
-    unsorted_slist.clear();
-    unsorted_slist.shrink_to_fit();
 
     // construct MPI version of q_index is easy to do. just let every process search the index in their local dlist.
-    // q_index is detector Hamiltonian's element relation to location in full matrix.
-    construct_q_index_MPI();
+    // q_index is monomer Hamiltonian's element relation to location in full matrix.
+    construct_anharmonic_coupling_info_index_list_MPI();
 }
 
 vector<vector<quotient_state>>  full_system::Gather_quotient_state_vec(){
-    // return d1list collected from each process: a list of d1list: d1list each process.
+    // return monomer1_quotient_state_list collected from each process: a list of monomer1_quotient_state_list: monomer1_quotient_state_list each process.
     int i,j,k;
-    // for d1list, we still need to re-sort d1list to make it sorted among all process to enable binary search.
-    // Gather d1list to process 0 for merge: Process 0 will use O(matsize * log(matsize)) to do sorting.
-    //------------  resize d1list in process 0 --------------------------------
-    int d1list_size = d1list.size();
-    int total_d1list_size; // total number of d1list in each process.
+    // for monomer1_quotient_state_list, we still need to re-sort monomer1_quotient_state_list to make it sorted among all process to enable binary search.
+    // Gather monomer1_quotient_state_list to process 0 for merge: Process 0 will use O(matsize * log(matsize)) to do sorting.
+    //------------  resize monomer1_quotient_state_list in process 0 --------------------------------
+    int d1list_size = monomer1_quotient_state_list.size();
+    int total_d1list_size; // total number of monomer1_quotient_state_list in each process.
     int * total_d1list_vmode;
     int * total_d1list_sys_state;
     MPI_Reduce(&d1list_size,&total_d1list_size,1,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD);
-    vector< vector <quotient_state>> d1list_each_process; // contain d1list gathered from each process.
+    vector< vector <quotient_state>> d1list_each_process; // contain monomer1_quotient_state_list gathered from each process.
     if(my_id==0){
         d1list_each_process.reserve(num_proc);
         total_d1list_vmode = new int [total_d1list_size * d.nmodes[1]];
         total_d1list_sys_state = new int [total_d1list_size];
     }
-    //------------ prepare size and displacement to send vmode and sys_state. Need in MPI_Gather. --------------------------------
+    //------------ prepare size and displacement to send vmode and exciton_state_index_list. Need in MPI_Gather. --------------------------------
     int * d1list_size_each_process;
     int * d1list_displacement ;
     int * d1list_vmode_size_each_process;
@@ -89,20 +67,20 @@ vector<vector<quotient_state>>  full_system::Gather_quotient_state_vec(){
         }
     }
 
-    //----------------------------Convert vmode and sys_state from d1list to vector.------------------------------------------------------
-    int * sys_state_list = new int [d1list_size];     // 1d array sys_state_list contain d1list's system state
+    //----------------------------Convert vmode and exciton_state_index_list from monomer1_quotient_state_list to vector.------------------------------------------------------
+    int * sys_state_list = new int [d1list_size];     // 1d array sys_state_list contain monomer1_quotient_state_list's system state
     for(i=0;i<d1list_size;i++){
-        sys_state_list[i]= d1list[i].sys_state;
+        sys_state_list[i]= monomer1_quotient_state_list[i].exciton_state;
     }
-    int * vmode_list= new int [d1list_size * d.nmodes[1]]; // 1d array vmode_list contain d1list's vmode
+    int * vmode_list= new int [d1list_size * d.nmodes[1]]; // 1d array vmode_list contain monomer1_quotient_state_list's vmode
     int index=0;
     for(i=0;i<d1list_size;i++){
         for(j=0;j<d.nmodes[1];j++){
-            vmode_list[index] = d1list[i].vmode[j];
+            vmode_list[index] = monomer1_quotient_state_list[i].vmode[j];
             index++;
         }
     }
-    //-------------------------------------Gather sys_state and vmode to process 0 ---------------------------------
+    //-------------------------------------Gather exciton_state_index_list and vmode to process 0 ---------------------------------
     MPI_Gatherv(&sys_state_list[0],d1list_size,MPI_INT,
             &total_d1list_sys_state[0],d1list_size_each_process,d1list_displacement,MPI_INT,0,MPI_COMM_WORLD);
     MPI_Gatherv(&vmode_list[0],d1list_size*d.nmodes[1],MPI_INT,
@@ -112,29 +90,29 @@ vector<vector<quotient_state>>  full_system::Gather_quotient_state_vec(){
     int * xindex_size_per_state_single_process = new int [d1list_size];  // record xindex_size in each quotient state.
     int total_xindex_size_single_process=0;  // total_xindex_size in process.
     for(i=0;i<d1list_size;i++){
-        xindex_size_per_state_single_process[i] = d1list[i].xindex.size();
+        xindex_size_per_state_single_process[i] = monomer1_quotient_state_list[i].full_hamiltonian_state_index_list.size();
         total_xindex_size_single_process = total_xindex_size_single_process + xindex_size_per_state_single_process[i];
     }
-    int * xindex_all_single_process = new int [total_xindex_size_single_process];  // all xindex in this process stored in xindex_all_single_process
-    int * dxindex_all_single_process = new int [total_xindex_size_single_process];// all dxindex in this process stored in dxindex_All_single_process
+    int * xindex_all_single_process = new int [total_xindex_size_single_process];  // all full_hamiltonian_state_index_list in this process stored in xindex_all_single_process
+    int * dxindex_all_single_process = new int [total_xindex_size_single_process];// all monomer_state_index_list in this process stored in dxindex_All_single_process
     index=0;
     for(i=0;i<d1list_size;i++){
         for(j=0;j<xindex_size_per_state_single_process[i];j++){
-            xindex_all_single_process[index] = d1list[i].xindex[j];
-            dxindex_all_single_process[index] = d1list[i].dxindex[j];
+            xindex_all_single_process[index] = monomer1_quotient_state_list[i].full_hamiltonian_state_index_list[j];
+            dxindex_all_single_process[index] = monomer1_quotient_state_list[i].monomer_state_index_list[j];
             index++;
         }
     }
 
-    // ----------------------process 0 record each quotient state 's size of xinsdex, dxindex list----------
-    int * xindex_size_each_quotient_state; // xindex size for each quotient state in each process.
+    // ----------------------process 0 record each quotient state 's size of xinsdex, monomer_state_index_list list----------
+    int * xindex_size_each_quotient_state; // full_hamiltonian_state_index_list size for each quotient state in each process.
     if(my_id ==0) {
         xindex_size_each_quotient_state = new int[total_d1list_size];  // total quotient state size.
     }
     MPI_Gatherv(&xindex_size_per_state_single_process[0],d1list_size,MPI_INT,
             &xindex_size_each_quotient_state[0],d1list_size_each_process,d1list_displacement,MPI_INT,0,MPI_COMM_WORLD);
-//--------------------------  record xindex size each process  ---------------------------------------------------------------------------------------
-    // to record xindex size for each process and use to gather all xindex list to process 0.
+//--------------------------  record full_hamiltonian_state_index_list size each process  ---------------------------------------------------------------------------------------
+    // to record full_hamiltonian_state_index_list size for each process and use to gather all full_hamiltonian_state_index_list list to process 0.
     int * total_xindex_size_each_process; // total_xindex_size in each process (gather in process id 0)
     int * total_xindex_displacement_each_process; // displacement for total_xindex_size
     total_xindex_size_each_process = new int [num_proc];
@@ -149,8 +127,8 @@ vector<vector<quotient_state>>  full_system::Gather_quotient_state_vec(){
     }
 //------------------------------------------------------------------------------------------------
     int total_xindex_list_size; // Sum of total_xindex_size_each_process
-    int * xindex_all_process;  // store all xindex from different process.
-    int * dxindex_all_process; // store all dxindex from different process
+    int * xindex_all_process;  // store all full_hamiltonian_state_index_list from different process.
+    int * dxindex_all_process; // store all monomer_state_index_list from different process
     if(my_id==0){
         total_xindex_list_size=0;
         for(i=0;i<num_proc;i++) {
@@ -166,8 +144,8 @@ vector<vector<quotient_state>>  full_system::Gather_quotient_state_vec(){
             &dxindex_all_process[0],total_xindex_size_each_process,total_xindex_displacement_each_process,MPI_INT,
             0,MPI_COMM_WORLD);
 //-------------------------------------------------------------------------------------------------------------------
-    vector<vector<int>> xindex_list_all_vec;  // all xindex ready to reconstruct quotient state
-    vector<vector<int>> dxindex_list_all_vec; // all dxindex ready to reconstruct quotient state
+    vector<vector<int>> xindex_list_all_vec;  // all full_hamiltonian_state_index_list ready to reconstruct quotient state
+    vector<vector<int>> dxindex_list_all_vec; // all monomer_state_index_list ready to reconstruct quotient state
     if (my_id==0) {
         index = 0;
         for (i = 0; i < total_d1list_size; i++) {
@@ -183,26 +161,26 @@ vector<vector<quotient_state>>  full_system::Gather_quotient_state_vec(){
         }
     }
 
-    // -------------convert total_d1list_vmode and total_d1list_sys_state and xindex, dxindex to d1list there ----------
+    // -------------convert total_d1list_vmode and total_d1list_sys_state and full_hamiltonian_state_index_list, monomer_state_index_list to monomer1_quotient_state_list there ----------
     if(my_id==0){
-        d1list_each_process.push_back(d1list);
-        int sys_state_index= d1list_size ;  // we will not reconstruct d1list originally in process 0
-        int vmode_index= d1list_size * d.nmodes[1]; // we will not reconstruct d1list originally in process 0
+        d1list_each_process.push_back(monomer1_quotient_state_list);
+        int sys_state_index= d1list_size ;  // we will not reconstruct monomer1_quotient_state_list originally in process 0
+        int vmode_index= d1list_size * d.nmodes[1]; // we will not reconstruct monomer1_quotient_state_list originally in process 0
         int sys_state;
         for(k=1;k<num_proc;k++) {
-            vector<quotient_state> temp_d1list;  // reconstruct d1list from other process.
+            vector<quotient_state> temp_d1list;  // reconstruct monomer1_quotient_state_list from other process.
             for (i = d1list_displacement[k];i < d1list_displacement[k] + d1list_size_each_process[k]; i++) {
-                // we will not reconstruct d1list originally in process 0
-                vector<int> vmode_temp;  // vmode characterize d1list
+                // we will not reconstruct monomer1_quotient_state_list originally in process 0
+                vector<int> vmode_temp;  // vmode characterize monomer1_quotient_state_list
                 for (j = 0; j < d.nmodes[1]; j++) {
                     vmode_temp.push_back(total_d1list_vmode[vmode_index]);
                     vmode_index++;
                 }
-                sys_state = total_d1list_sys_state[sys_state_index];  // system state characterize d1list
+                sys_state = total_d1list_sys_state[sys_state_index];  // system state characterize monomer1_quotient_state_list
                 sys_state_index++;
-                quotient_state qs(vmode_temp, sys_state);  // quotient state qs constructed in d1list
-                qs.xindex = xindex_list_all_vec[i];
-                qs.dxindex = dxindex_list_all_vec[i];
+                quotient_state qs(vmode_temp, sys_state);  // quotient state qs constructed in monomer1_quotient_state_list
+                qs.full_hamiltonian_state_index_list = xindex_list_all_vec[i];
+                qs.monomer_state_index_list = dxindex_list_all_vec[i];
                 temp_d1list.push_back(qs);
             }
             d1list_each_process.push_back(temp_d1list);
@@ -238,9 +216,9 @@ vector<vector<quotient_state>>  full_system::Gather_quotient_state_vec(){
 vector<quotient_state> full_system::sort_d1list(vector<vector<quotient_state>> & d1list_each_process){
     // use d1list_each_process collected from  full_system::Gather_quotient_state_vec().
     int i;
-    // now you sort d1list using d1list_each_process (each member contain part of d1list):
+    // now you sort monomer1_quotient_state_list using d1list_each_process (each member contain part of monomer1_quotient_state_list):
     // we use function merge_d1list to merge quotient list in process 0;
-    int merge_list_size;  // size of d1list after merge.
+    int merge_list_size;  // size of monomer1_quotient_state_list after merge.
     vector < quotient_state> sorted_d1list;
     if(my_id==0) {
         merge_list_size = num_proc;
@@ -271,35 +249,35 @@ vector<quotient_state> full_system::sort_d1list(vector<vector<quotient_state>> &
         }
         sorted_d1list =(*old_list_ptr)[0];
     }
-    // Now we use merge sort to sort d1list. next we have to scatter them to all other process.
+    // Now we use merge sort to sort monomer1_quotient_state_list. next we have to scatter them to all other process.
     return sorted_d1list;
 }
 
 quotient_state merge_quotient_state(quotient_state s1, quotient_state s2){
     int i;
-    if( s1.sys_state != s2.sys_state or s1.vmode != s2.vmode){
+    if(s1.exciton_state != s2.exciton_state or s1.vmode != s2.vmode){
         cout<<"Error, the two quotient_state do not equal to each other!"<<endl;
         MPI_Abort(MPI_COMM_WORLD,-14);
     }
-    quotient_state s3(s1.vmode,s1.sys_state);
-    int xindex_size1= s1.xindex.size();
-    int xindex_size2= s2.xindex.size();
+    quotient_state s3(s1.vmode,s1.exciton_state);
+    int xindex_size1= s1.full_hamiltonian_state_index_list.size();
+    int xindex_size2= s2.full_hamiltonian_state_index_list.size();
     int dx_position;
     for(i=0;i<xindex_size1;i++){
-        dx_position=binary_insert_dxindex(s3.dxindex,s1.dxindex[i]);
-        s3.xindex.insert(s3.xindex.begin()+ dx_position, s1.xindex[i]);
+        dx_position=binary_insert_dxindex(s3.monomer_state_index_list, s1.monomer_state_index_list[i]);
+        s3.full_hamiltonian_state_index_list.insert(s3.full_hamiltonian_state_index_list.begin() + dx_position, s1.full_hamiltonian_state_index_list[i]);
     }
     for(i=0;i<xindex_size2;i++){
-        dx_position = binary_insert_dxindex(s3.dxindex,s2.dxindex[i]);
-        s3.xindex.insert(s3.xindex.begin() + dx_position, s2.xindex[i]);
+        dx_position = binary_insert_dxindex(s3.monomer_state_index_list, s2.monomer_state_index_list[i]);
+        s3.full_hamiltonian_state_index_list.insert(s3.full_hamiltonian_state_index_list.begin() + dx_position, s2.full_hamiltonian_state_index_list[i]);
     }
     return s3;
 }
 
 vector<quotient_state> merge_d1list(vector<quotient_state> & qlist1, vector<quotient_state> & qlist2){
-    // Algorithm used here: merge sort.  merge d1list in different process and return a new d1list.
-    // if we found two quotient state in d1list is the same, we combine them together using merge_quotient_state() function.
-    // input: qlist1, qlist2:  two quotient state list (d1list) in different process to merge
+    // Algorithm used here: merge sort.  merge monomer1_quotient_state_list in different process and return a new monomer1_quotient_state_list.
+    // if we found two quotient state in monomer1_quotient_state_list is the same, we combine them together using merge_quotient_state() function.
+    // input: qlist1, qlist2:  two quotient state list (monomer1_quotient_state_list) in different process to merge
     // output: qlist3: quotient state list after merge.
     int mark;
     int qlist1_size = qlist1.size();
@@ -315,7 +293,7 @@ vector<quotient_state> merge_d1list(vector<quotient_state> & qlist1, vector<quot
     vector<quotient_state> qlist3;
     quotient_state s3 = qlist1[0];  // quotient state used to push into qlist3.
     while(q1_index<qlist1_size and q2_index < qlist2_size){
-        mark = compare_quotient_state(qlist1[q1_index].sys_state,qlist1[q1_index].vmode,qlist2[q2_index].sys_state,qlist2[q2_index].vmode);
+        mark = compare_quotient_state(qlist1[q1_index].exciton_state, qlist1[q1_index].vmode, qlist2[q2_index].exciton_state, qlist2[q2_index].vmode);
         if(mark>0){
             // qlist2[q2_index] is smaller.
             qlist3.push_back(qlist2[q2_index]);
@@ -354,20 +332,20 @@ vector<quotient_state> merge_d1list(vector<quotient_state> & qlist1, vector<quot
 void full_system:: Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list){
     // Scatter sorted_d1list to each process.
     int i,j;
-    int * vsize_each_process;  // size of d1list scatter to each process.
-    int * vsize_displacement_each_process; // displacement of d1list to scatter in each process.
+    int * vsize_each_process;  // size of monomer1_quotient_state_list scatter to each process.
+    int * vsize_displacement_each_process; // displacement of monomer1_quotient_state_list to scatter in each process.
     int * total_sys_state_list;
 
     int *vsize_vmode_each_process; // size of vmode to scatter to each process.
     int *vsize_vmode_displacement_each_process; // displacement for vmode to scatter to each process.
     int * total_vmode_list; // 1d array that record all vmode
 
-    int *vsize_xindex_size_each_state;  // xindex size each quotient state
-    int * vsize_xindex_size_each_process;  // xindex size in each process.
+    int *vsize_xindex_size_each_state;  // full_hamiltonian_state_index_list size each quotient state
+    int * vsize_xindex_size_each_process;  // full_hamiltonian_state_index_list size in each process.
     int * vsize_xindex_displacement_each_process;
 
-    int * total_xindex_list;  // list record all xindex
-    int * total_dxindex_list;  // list record all dxindex
+    int * total_xindex_list;  // list record all full_hamiltonian_state_index_list
+    int * total_dxindex_list;  // list record all monomer_state_index_list
 
     vsize_each_process = new int[num_proc];  // quotient state each process
     vsize_displacement_each_process = new int[num_proc];  // displacement for vsize_each_process
@@ -375,8 +353,8 @@ void full_system:: Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list)
     vsize_vmode_each_process = new int[num_proc];  // quotient state's mode for each process.
     vsize_vmode_displacement_each_process = new int[num_proc];  // quotient state's mode's displacement for each process.
 
-    vsize_xindex_size_each_process = new int [num_proc];  // size of 1d array for xindex.
-    vsize_xindex_displacement_each_process = new int [num_proc];  // displacement for 1d array for xindex
+    vsize_xindex_size_each_process = new int [num_proc];  // size of 1d array for full_hamiltonian_state_index_list.
+    vsize_xindex_displacement_each_process = new int [num_proc];  // displacement for 1d array for full_hamiltonian_state_index_list
 
     if(my_id==0) {
         int index;
@@ -384,7 +362,7 @@ void full_system:: Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list)
         int vsize = d1list_total_size / num_proc;
         int vsize2 = d1list_total_size - (num_proc - 1) * vsize;
 
-        // for sys_state
+        // for exciton_state_index_list
         for (i = 0; i < num_proc - 1; i++) {
             vsize_each_process[i] = vsize;
         }
@@ -397,7 +375,7 @@ void full_system:: Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list)
 
         total_sys_state_list = new int [d1list_total_size];
         for(i=0;i<d1list_total_size;i++){
-            total_sys_state_list[i] = sorted_d1list[i].sys_state;
+            total_sys_state_list[i] = sorted_d1list[i].exciton_state;
         }
 
         // for vmode
@@ -419,11 +397,11 @@ void full_system:: Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list)
             }
         }
 
-        // for xindex, dxindex
-        vsize_xindex_size_each_state = new int[d1list_total_size];    // xindex size for each quotient state
-        int total_vsize_xindex_size = 0;       // total xindex size for all quotient state
+        // for full_hamiltonian_state_index_list, monomer_state_index_list
+        vsize_xindex_size_each_state = new int[d1list_total_size];    // full_hamiltonian_state_index_list size for each quotient state
+        int total_vsize_xindex_size = 0;       // total full_hamiltonian_state_index_list size for all quotient state
         for (i = 0; i < d1list_total_size; i++) {
-            vsize_xindex_size_each_state[i] = sorted_d1list[i].xindex.size();
+            vsize_xindex_size_each_state[i] = sorted_d1list[i].full_hamiltonian_state_index_list.size();
             total_vsize_xindex_size = total_vsize_xindex_size + vsize_xindex_size_each_state[i];
         }
 
@@ -441,24 +419,24 @@ void full_system:: Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list)
                     vsize_xindex_displacement_each_process[i-1] + vsize_xindex_size_each_process[i-1];
         }
 
-        total_xindex_list = new int [total_vsize_xindex_size];  // array prepare to send xindex
-        total_dxindex_list = new int [total_vsize_xindex_size]; // array prepare to send dxindex
+        total_xindex_list = new int [total_vsize_xindex_size];  // array prepare to send full_hamiltonian_state_index_list
+        total_dxindex_list = new int [total_vsize_xindex_size]; // array prepare to send monomer_state_index_list
         index =0;
         int xindex_size;
         for(i=0;i<d1list_total_size;i++){
-            xindex_size= sorted_d1list[i].xindex.size();
+            xindex_size= sorted_d1list[i].full_hamiltonian_state_index_list.size();
             for(j=0;j<xindex_size;j++){
-                total_xindex_list[index] = sorted_d1list[i].xindex[j];
-                total_dxindex_list[index] = sorted_d1list[i].dxindex[j];
+                total_xindex_list[index] = sorted_d1list[i].full_hamiltonian_state_index_list[j];
+                total_dxindex_list[index] = sorted_d1list[i].monomer_state_index_list[j];
                 index++;
             }
         }
     }
-    // scatter sys_state
-    int quotient_state_number;  // number of quotient contain in d1list.
+    // scatter exciton_state_index_list
+    int quotient_state_number;  // number of quotient contain in monomer1_quotient_state_list.
     MPI_Scatter(&vsize_each_process[0],1,MPI_INT,&quotient_state_number,1,MPI_INT,0,MPI_COMM_WORLD);
-    d1list.clear();
-    d1list.reserve(quotient_state_number);
+    monomer1_quotient_state_list.clear();
+    monomer1_quotient_state_list.reserve(quotient_state_number);
     int * quotient_state_sys_1d = new int [quotient_state_number];
     MPI_Scatterv(&total_sys_state_list[0],vsize_each_process,vsize_displacement_each_process,MPI_INT,
             &quotient_state_sys_1d[0],quotient_state_number,MPI_INT,0,MPI_COMM_WORLD);
@@ -471,8 +449,8 @@ void full_system:: Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list)
             &quotient_state_vmode_1d[0],quotient_state_vmode_number,MPI_INT,0,MPI_COMM_WORLD);
 
 
-    //scatter xindex, dxindex
-    int total_xindex_size_single_process;  // total number of xindex
+    //scatter full_hamiltonian_state_index_list, monomer_state_index_list
+    int total_xindex_size_single_process;  // total number of full_hamiltonian_state_index_list
     MPI_Scatter(&vsize_xindex_size_each_process[0],1,MPI_INT,
             &total_xindex_size_single_process,1,MPI_INT,0,MPI_COMM_WORLD);
     int * xindex_size_each_quotient_state = new int [quotient_state_number];  // xindex_size for each quotient state in list
@@ -498,13 +476,13 @@ void full_system:: Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list)
             vmode_index++;
         }
         quotient_state sq (vmode,sys_state);
-        // insert xindex, dxindex
+        // insert full_hamiltonian_state_index_list, monomer_state_index_list
         for(j=0;j<xindex_size_each_quotient_state[i];j++){
-            sq.xindex.push_back(xindex_each_quotient_state_1d[xindex_index]);
-            sq.dxindex.push_back(dxindex_each_quotient_state_1d[xindex_index]);
+            sq.full_hamiltonian_state_index_list.push_back(xindex_each_quotient_state_1d[xindex_index]);
+            sq.monomer_state_index_list.push_back(dxindex_each_quotient_state_1d[xindex_index]);
             xindex_index++;
         }
-        d1list.push_back(sq);
+        monomer1_quotient_state_list.push_back(sq);
     }
 
     //--------------------free the space --------------------------------
@@ -534,58 +512,63 @@ void full_system:: Scatter_sorted_d1list(vector<quotient_state> & sorted_d1list)
     delete [] dxindex_each_quotient_state_1d;
 }
 
-void full_system:: rearrange_d1list(){
-    vector <vector<quotient_state>> d1list_each_process = Gather_quotient_state_vec();
-    vector<quotient_state> sorted_d1list= sort_d1list(d1list_each_process);
-    Scatter_sorted_d1list(sorted_d1list);
+void full_system:: rearrange_monomer1list(){
+    vector <vector<quotient_state>> monomer1_each_process = Gather_quotient_state_vec();
+    vector<quotient_state> sorted_monomer1list = sort_d1list(monomer1_each_process);
+    Scatter_sorted_d1list(sorted_monomer1list);
 }
 
-void full_system::construct_q_index_MPI(){
-    // Before we compute Reduced density matrix of detector to compute detector Energy,
+void full_system::construct_anharmonic_coupling_info_index_list_MPI(){
+    // Before we compute Reduced density matrix of monomer to compute monomer Energy,
     // we have to compute q_index to speed up calculation
     // This q_index is also used to construct off diagonal matrix for full system.
-    // q_index compose detector's Hamiltonian and its corresponding element in full matrix.
+    // q_index compose monomer's Hamiltonian and its corresponding element in full matrix.
     int m,i,j,p,n;
     int k1,l1;
     int k,l;
-    double value;
+    double anharmonic_coupling_value;
     bool exist1, exist2;
-    vector <quotient_state> * dlist_ptr;
-    int list_size;
+    vector <quotient_state> * monomer_state_list_ptr;
+    int quotient_state_list_size;
 
-    for(m=0;m<s.electronic_state_num; m++){
-        if(m==0) dlist_ptr = &(d1list);  // d1list: quotient state list for detector 1
-        else dlist_ptr = &(d2list);  // d2list: quotient state list for detector 2
-        list_size= (*dlist_ptr).size();
+    int monomer_num = 2;
 
-        for(p=0;p<d.total_dmat_num[m];p++){
-            i= d.total_dirow[m][p];  // index for state with anharmonic coupling in local monomer. ( also include energy term).
-            j= d.total_dicol[m][p];  // index for state with anharmonic coupling in local monomer.
+    for(m = 0; m < monomer_num; m++){
+        if(m == 0) monomer_state_list_ptr = &(monomer1_quotient_state_list);  // monomer1_quotient_state_list: quotient state list for monomer 1. States are grouped according to (exciton_state_index_list, vmode2)
+        else monomer_state_list_ptr = &(monomer2_quotient_state_list);  // monomer2_quotient_state_list: quotient state list for monomer 2. States are grouped according to (exciton_state_index_list, vmode1)
+        quotient_state_list_size= (*monomer_state_list_ptr).size();
 
-            if(i>j) continue; // we only record half the result.
-            value= d.total_dmat[m][p];
+        for(p = 0; p < d.total_monomer_mat_num[m]; p++){ // go through Hamiltonian matrix elements
+            i= d.total_monomer_irow[m][p];  // index for state with anharmonic coupling in local monomer. (also include diagonal energy term).
+            j= d.total_monomer_icol[m][p];  // index for state with anharmonic coupling in local monomer.
 
-            for(n=0;n<list_size;n++){
-                // go through quotient space for specific detector.
-                k1 = binary_search_dxindex((*dlist_ptr)[n].dxindex,i,exist1);
+            if(i > j) continue; // we only record half of the anharmonic coupling result to avoid redundancy.
+            anharmonic_coupling_value= d.total_monomer_mat[m][p]; // monomer Hamiltonian matrix anharmonic_coupling_value
+
+            for(n = 0; n < quotient_state_list_size; n++){
+                // go through quotient space for specific monomer + exciton state pair.
+                k1 = binary_search_monomer_state_index((*monomer_state_list_ptr)[n].monomer_state_index_list, i, exist1); // find the index in monomer_state_index_list list that has monomer state index i.
                 if(i==j){
-                    exist2=exist1;
-                    l1=k1;
+                    exist2 = exist1;
+                    l1 = k1;
                 }
                 else{
-                    l1= binary_search_dxindex((*dlist_ptr)[n].dxindex,j,exist2);
+                    l1 = binary_search_monomer_state_index((*monomer_state_list_ptr)[n].monomer_state_index_list, j, exist2); // find the index in monomer_state_index_list list that has monomer state index j.
                 }
 
                 if(exist1 and exist2){
-                    k= (*dlist_ptr)[n].xindex[k1];
-                    l=(*dlist_ptr)[n].xindex[l1];
-                    // i : state for monomer, j : state for monomer.  i,j monoer state coupled with each other anharmonically.
+                    // Take monomer1 for example, in this case: both states with the same (vib_mode2 , exciton_state) exists and we should include such anharmonic coupling in Hamiltonian.
+                    k = (*monomer_state_list_ptr)[n].full_hamiltonian_state_index_list[k1]; // the state index in full Hamiltonian matrix with the same monomer2 state + exciton state, and monomer 1 state = i.
+                    l = (*monomer_state_list_ptr)[n].full_hamiltonian_state_index_list[l1];// the state index in full Hamiltonian matrix with the same monomer2 state + exciton state, and monomer 1 state = j.
+                    // anharmonic_coupling_info_index record info for Hamiltonian matrix elements within one given monomer. anharmonic coupling between state i and state j in one monomer.
+                    // k,l record state index in full Hamiltonian.
+                    // i : state for monomer, j : state for monomer.  i,j monomer states are coupled with each other anharmonically.
                     // k: state in full_matrix, l: state in full matrix.
-                    // p : index in detector mat for local anharmonic coupling
-                    vector <int> qindex = {i,j,k,l,p};
+                    // p : index in monomer mat for local anharmonic coupling
+                    vector <int> anharmonic_coupling_info_index = {i, j, k, l, p};
 
-                    (*dlist_ptr)[n].q_index_list.push_back(qindex);
-                    (*dlist_ptr)[n].dmat_value_list.push_back(value);
+                    (*monomer_state_list_ptr)[n].anharmonic_coupling_info_index_list.push_back(anharmonic_coupling_info_index);
+                    (*monomer_state_list_ptr)[n].anharmonic_coupling_value_list.push_back(anharmonic_coupling_value);
                 }
 
             }

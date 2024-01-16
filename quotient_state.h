@@ -7,60 +7,53 @@
 #define QUANTUM_MEASUREMENT_QUOTIENT_STATE_H
 using namespace std;
 
-struct sys_quotient_state {
-    vector<int> vmode1; // mode of detector 1
-    vector<int> vmode2; // mode of detector 2
-    // we can also store the detector index in it.
-    int dindex1;  // index in detector 1
-    int dindex2;  // index in detector 2
-    vector <int> xindex;  // index in system + detector wave function. (x,y)
-    vector <int> sysxindex;  // index in system reduced density matrix.
-    sys_quotient_state(const vector<int> & vmode1_0, const vector<int> & vmode2_0, int dxindex1, int dxindex2){
-        vmode1 = vmode1_0;
-        vmode2 = vmode2_0;
-        dindex1=dxindex1;
-        dindex2=dxindex2;
-    }
-};
 
-struct quotient_state {   // detector quotient_space_state.
-    int sys_state;  // state of electronic dof.
-    vector<int> vmode; // mode of detector
+struct quotient_state {   // monomer quotient_space_state.
 
-    vector <int> xindex;  // index in system + detector wave function. (x,y)
-    vector <int> dxindex; // index in detector reduced density matrix basis (dx, dy).
+    // each quotient_state is defined for pair (exciton_state_index_list, vmode), here vmode is vibrational mode in another monomer
+    // exciton_state_index_list is exciton state ( 0 or 1).
+    // states (exciton_state_index_list, vmode1, vmode2) is grouped into different group according to (exciton_state_index_list, vmode2) for monomer1_quotient_state_list and (exciton_state_index_list, vmode1) for monomer2_quotient_state_list
+    // monomer1_quotient_state_list is used when we construct anharmonic coupling in monomer1, states are grouped according to (exciton_state_index_list, vmode2)
+    // monomer2_quotient_state_list is used when we construct anharmonic coupling in monomer2, states are grouped according to (exciton_state_index_list, vmode1)
 
-    vector<vector<int>> q_index_list;
+    // Take monomer1_quotient_state_list for example:
+    int exciton_state;  // exciton state. denote different potential energy surface
+    vector<int> vmode;  // vibrational mode of monomer2
+
+
+    vector <int> full_hamiltonian_state_index_list;  // list of state index in exciton_state_index_list + monomer vib state wave function that is defined with (exciton_state_index_list, vmode1, vmode2),
+                                                // which is grouped according to (exciton_state_index_list, vmode2)
+
+    vector <int> monomer_state_index_list; // sorted list. records index in monomer1 reduced density matrix basis. (monomer states with vibrational quantum number vmode1)
+
+
+    // anharmonic_coupling_info_index records anharmonic coupling for vib states in monomer 1.
     // list of tuple (i,j,k,l,m):
-    // i : vib state in monomer, j : vib state in monomer.  i,j monoer state coupled with each other anharmonically.
-    // k: state in full_matrix, l: state in full matrix.
-    // m : index in detector mat for local anharmonic coupling
+    // i : vib state in monomer1, j : vib state in monomer1.  i,j monoer state coupled with each other anharmonically.
+    // k: state index in full_matrix, l: state index in full matrix.
+    // m : index in monomer Hamiltonian for local anharmonic coupling
+    vector<vector<int>> anharmonic_coupling_info_index_list;
 
-    vector<double> dmat_value_list;
+    vector<double> anharmonic_coupling_value_list;
 
-    quotient_state(vector<int>  & vmode1, int sys_state1){
-        sys_state= sys_state1;
-        vmode=vmode1;
+    // initialize quotient state. defined with vibrational states in another monomer and exciton states
+    quotient_state(vector<int>  & vmode1, int exciton_state1){
+        exciton_state = exciton_state1;
+        vmode = vmode1;
     }
 };
 
 int binary_insert_dxindex(vector <int> & list, int key);
 int compare_quotient_state(int sys_state1, const vector <int>  & vmode1, int sys_state2, const vector <int> & vmode2);
-int binary_search_dxindex(const vector <int> & list, int key, bool & exist);
-void insert_quotient_state(vector <quotient_state> & list, int sys_state, vector<int> & vmode1,  int xindex, int dxindex);
+int binary_search_monomer_state_index(const vector <int> & list, int key, bool & exist);
+void insert_quotient_state(vector <quotient_state> & quotient_states_list, int exciton_state, vector<int> & vmode1, int full_hamiltonian_state_index, int monomer_state_index);
 void save_detector_quotient_state_data_for2( const vector <quotient_state> & d1list, const vector <quotient_state> & d2list, string path);
 void load_detector_quotient_state_data_for2( vector<quotient_state> & d1list, vector <quotient_state> & d2list, string path);
 
 
 
-void insert_sys_quotient_state(vector <sys_quotient_state> & list, const vector<int> vmode1_0, const vector<int> vmode2_0, int mod_dim, int xindex, int sysxindex, int dxindex1, int dxindex2);
-vector<sys_quotient_state> merge_sort_list(vector<sys_quotient_state> & list);
-void save_sys_quotient_state_data(const vector<sys_quotient_state> & list, string path);
-void load_sys_quotient_state_data( vector <sys_quotient_state> &list, string path);
-
 
 int find_position_for_insert_binary(const vector<vector<int>> & vmode, const vector<int> & ndetector, bool & exist);  // write in compute_matrix_energy_window.cpp
-int find_location_binarysearch_sys_quotient_state(const vector<sys_quotient_state> & list, vector<int> & vmode1, const vector  <int> & vmode2, bool & exist);  // write in Compute_sys_reduced_density.cpp
 int find_location_binarysearch_quotient_state(const vector<quotient_state> & list, int sys_state, const vector <int> & vmode, bool & exist);
 
 #endif //QUANTUM_MEASUREMENT_QUOTIENT_STATE_H

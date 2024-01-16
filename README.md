@@ -12,11 +12,7 @@
 
             
 
-        (2) Also check  include_directories(""), make sure the link is correct.
 
-        (3)  check add_executable (project_name   [files] )  make sure project name is the same as in project( my_project_LW_model )
-
-        (4) target_link_libraries(project_name ) , make sure project_name is correct.
 
 2. in util.h
 
@@ -72,7 +68,7 @@ full_system::full_system(string path1) {
  compute_detector_matrix_size_MPI_sphere();
 
  // we construct anharmonic coupling between states, thus finish constructing Hamiltonian.
- d.construct_dmatrix_MPI(input,output,log,dmat0,dmat1,vmode0,vmode1);
+ d.construct_monomer_Hamiltonian_MPI(input,output,log,dmat0,dmat1,monomer_qn_list0,monomer_qn_list1);
  cout<<"Finish constructing Matrix"<<endl;
 
 }
@@ -189,11 +185,11 @@ $n = \frac{1}{4} (\frac{\epsilon}{\lambda_{1} + \lambda_{2}} - \frac{2 \lambda_{
         crossing_region_state[1][1] = lround (Crossing_point_quanta_spin_up );Set initial state of system : 
 ```
 
-- initial_detector_state[0]   : $|0 , m ,\cdots \rangle$ .  here 0 stands it is in ground electronic state.
+- initial_vibrational_state[0]   : $|0 , m ,\cdots \rangle$ .  here 0 stands it is in ground electronic state.
 
 $m$ stands its q.n. (quantum number) in first vibrational mode is == $m$  (see eq.(47) in Logan note and note above. )
 
-- initial_detector_state[1] :  $|1  , n ,\cdots \rangle$ , here 1 stands for it is in excited electronic state. 
+- initial_vibrational_state[1] :  $|1  , n ,\cdots \rangle$ , here 1 stands for it is in excited electronic state. 
 
 $n$ stands its q.n. in first vibrational mode is == n . (see eq.(47 ) in Logan's note).
 
@@ -201,14 +197,14 @@ $n$ stands its q.n. in first vibrational mode is == n . (see eq.(47 ) in Logan's
 
 ```cpp
 void full_system:: construct_Hamiltonian_basis_set( ){
-    // use this function we construct detector state in a cube.
+    // use this function we construct monomer state in a cube.
     if(my_id==0){
         int i, j, k;
         int i1;
         double  energy;
 
         double energy_for_vibrational_state;
-        // ndetector0 and ndetector1 indicate current detector mode quantum number (0001001 for example)  we are considering.
+        // ndetector0 and ndetector1 indicate current monomer mode quantum number (0001001 for example)  we are considering.
         vector<int> ndetector0(d.nmodes[0]);
 
         int location;
@@ -285,7 +281,7 @@ $|0,0,0, \cdots \rangle  \rightarrow |0,1,0,\cdots \rangle \rightarrow \cdots \r
 ```cpp
             energy = 0;
             energy_for_vibrational_state = 0;
-            // calculate detector 1 energy
+            // calculate monomer 1 energy
             for (i = 0; i < d.nmodes[1]; i++) {
                 energy = energy + ndetector0[i] * d.mfreq[1][i];
             }
@@ -300,11 +296,11 @@ $|0,0,0, \cdots \rangle  \rightarrow |0,1,0,\cdots \rangle \rightarrow \cdots \r
 
 ```cpp
             //--------------------------------------------------------------------------------------------
-            // criteria below make sure detector 0 's energy is reasonable.
+            // criteria below make sure monomer 0 's energy is reasonable.
             // d.initial_vibrational_energy[0] only include vibrational energy of electronic state.
-            if ( energy_for_vibrational_state > d.initial_vibrational_energy[1] + d.detector_energy_window_size) {
-                // detector 0's energy can not be larger than its initial energy + photon energy
-                // jump to next detector state.
+            if ( energy_for_vibrational_state > d.initial_vibrational_energy[1] + d.vibrational_energy_window_size) {
+                // monomer 0's energy can not be larger than its initial energy + photon energy
+                // jump to next monomer state.
 
                 // start with first vibrational mode
                 k = 1;
@@ -329,9 +325,9 @@ Because of the sequence we choose to go through state in state space, once energ
 $|1,2,3,0,1 , \cdots \rangle \rightarrow |0,0,0,1,1,\cdots \rangle  $ 
 
 ```cpp
-            // criteria below make sure detector 1 can not be too far away from bright state and lower bright state.
+            // criteria below make sure monomer 1 can not be too far away from bright state and lower bright state.
             // this distance only apply to vibrational state space.
-            state_one_norm_distance = state_distance(ndetector0, d.initial_detector_state[1], d.nmodes[1]);
+            state_one_norm_distance = state_distance(ndetector0, d.initial_vibrational_state[1], d.nmodes[1]);
             if ( state_one_norm_distance > Rmax) {
                 goto label4;
             }
@@ -340,10 +336,10 @@ $|1,2,3,0,1 , \cdots \rangle \rightarrow |0,0,0,1,1,\cdots \rangle  $
 We require quantum state we incorporate satisfy $| n - n_{init} | < R_{max} $
 
 ```cpp
-location=find_position_for_insert_binary(vmode0, ndetector0, exist);  // we check if this mode exist and the location we have to insert this state at the same time.
+location=find_position_for_insert_binary(monomer_qn_list0, ndetector0, exist);  // we check if this mode exist and the location we have to insert this state at the same time.
             if (!exist) {
                 // when we push back we should consider arrange them in order. We compute location to insert in find_position_for_insert_binary() function:
-                vmode0.insert(vmode0.begin() + location, ndetector0);
+                monomer_qn_list0.insert(monomer_qn_list0.begin() + location, ndetector0);
                 dmat0.insert(dmat0.begin() + location, energy);
             }
 ```
@@ -357,27 +353,27 @@ To facilitate future reference of state, we also order state according to their 
 #### 4. construct_Hamiltonian_matrix()
 
 ```cpp
-void detector:: construct_Hamiltonian_matrix(ifstream & input, ofstream & output, ofstream & log,  vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1) {
+void monomer:: construct_Hamiltonian_matrix(ifstream & input, ofstream & output, ofstream & log,  vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & monomer_qn_list0, vector<vector<int>> & monomer_qn_list1) {
     int m;
 
     // previously information for state space is in process 0. Now we broadcast this information to all procerss.
-    construct_dv_dirow_dicol_dmatrix_MPI(log, dmat0, dmat1, vmode0, vmode1);
+    construct_dv_dirow_dicol_dmatrix_MPI(log, dmat0, dmat1, monomer_qn_list0, monomer_qn_list1);
 
     // compute index for initial state (here state at crossing region) in Hamiltonian.
-    compute_initial_state_index();
+    compute_initial_vibrational_state_index();
 
-    compute_detector_offdiag_part_MPI(log,dmat0,dmat1,vmode0,vmode1);
+    compute_monomer_offdiag_part_MPI(log,dmat0,dmat1,monomer_qn_list0,monomer_qn_list1);
  ....
 ```
 
-##### 4.1 compute_initial_state_index()
+##### 4.1 compute_initial_vibrational_state_index()
 
 We know in some cases, the initial state we choose in program may be important for evaluating some quantity, thus we compute state index in state list according to q.n. of initial state.
 
 ##### 4.2 compute off diagonal matrix of Hamiltonian
 
 ```cpp
-void detector::compute_detector_offdiag_part_MPI(ofstream & log,vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & vmode0, vector<vector<int>> & vmode1)
+void monomer::compute_monomer_offdiag_part_MPI(ofstream & log,vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & monomer_qn_list0, vector<vector<int>> & monomer_qn_list1)
 ```
 
 **Coupling between state in different vibrational state**
@@ -424,7 +420,7 @@ We define $\Delta \alpha$ in code as    **Alpha** .
                 ntot=0;
                 // k begins with 1, because index 0 is to denote different electronic state.
                 for(k=1;k<nmodes[0];k++){
-                    deln[k]= abs( (*vmode_ptr)[i][k] - (*vmode_ptr)[j][k] ); //  deln[k] = abs(dv[m][i][k] - dv[m][j][k]);
+                    deln[k]= abs( (*vmode_ptr)[i][k] - (*vmode_ptr)[j][k] ); //  deln[k] = abs(monomer_vibrational_states_quantum_number_list[m][i][k] - monomer_vibrational_states_quantum_number_list[m][j][k]);
                     nbar[k]= sqrt(sqrt(double(max(1, (*vmode_ptr)[i][k])) * double(max(1, (*vmode_ptr)[j][k]  ))  )); // sqrt( vi[k] * vj[k] ).  This account for coefficient \sqrt{n + 1} generated by a^{+}|n> etc.
                     ntot= ntot+ deln[k];
                 }
@@ -461,14 +457,14 @@ We define $\Delta \alpha$ in code as    **Alpha** .
                     if ( (*dmat_ptr)[i] != (*dmat_ptr)[j] ) {
                         lij = abs(value / ((*dmat_ptr)[i] - (*dmat_ptr)[j]));
                         if (lij > cutoff) {
-                            dmat[0].push_back(value);
-                            dirow[0].push_back(i);
-                            dicol[0].push_back(j);
+                            monomer_mat[0].push_back(value);
+                            monomer_irow[0].push_back(i);
+                            monomer_icol[0].push_back(j);
                         }
                     } else {
-                        dmat[0].push_back(value);
-                        dirow[0].push_back(i);
-                        dicol[0].push_back(j);
+                        monomer_mat[0].push_back(value);
+                        monomer_irow[0].push_back(i);
+                        monomer_icol[0].push_back(j);
                     }
                 }
             }
@@ -545,14 +541,14 @@ Code for coupling between electronic state :
                 if ( (*dmat_ptr)[i] != (*dmat_ptr)[j] ) {
                     lij = abs(tunneling_matrix_element / ((*dmat_ptr)[i] - (*dmat_ptr)[j]));
                     if (lij > cutoff_for_coupling_between_electronic_state) {
-                        dmat[0].push_back( tunneling_matrix_element );
-                        dirow[0].push_back(i);
-                        dicol[0].push_back(j);
+                        monomer_mat[0].push_back( tunneling_matrix_element );
+                        monomer_irow[0].push_back(i);
+                        monomer_icol[0].push_back(j);
                     }
                 } else {
-                    dmat[0].push_back( tunneling_matrix_element );
-                    dirow[0].push_back(i);
-                    dicol[0].push_back(j);
+                    monomer_mat[0].push_back( tunneling_matrix_element );
+                    monomer_irow[0].push_back(i);
+                    monomer_icol[0].push_back(j);
                 }
 
             }
@@ -648,7 +644,7 @@ This code analyze Hamiltonian H and find all the index for $m$ of  vector  $\psi
 #### 1.1 construct_receive_buffer_index()
 
 ```cpp
-vector <int> col_index_copy = dicol[detector_index];  // column index in Hamiltonian has nonzero element.
+vector <int> col_index_copy = monomer_icol[detector_index];  // column index in Hamiltonian has nonzero element.
     sort(col_index_copy.begin(),col_index_copy.end()); // sort vector.
     int col_array_size = col_index_copy.size();
     int prev_col=-1;
@@ -677,7 +673,7 @@ vector <int> col_index_copy = dicol[detector_index];  // column index in Hamilto
     }
 ```
 
-Here **dicol[detector_index]** is column index for nonzero element in Hamiltonian reside in given process.
+Here **monomer_icol[detector_index]** is column index for nonzero element in Hamiltonian reside in given process.
 
 1 . We record index in  remoteVecIndex_element
 
@@ -697,8 +693,8 @@ use MPI_Alltoall and MPI_Alltoallv
 
 ```cpp
     for(m=0;m< sampling_state_list_size;m++){
-        xd[m].resize(dmatsize[0] + to_recv_buffer_len[0]);
-        yd[m].resize(dmatsize[0] + to_recv_buffer_len[0]);
+        xd[m].resize(monomer_matsize[0] + to_recv_buffer_len[0]);
+        yd[m].resize(monomer_matsize[0] + to_recv_buffer_len[0]);
         recv_xd[m] = new double [to_recv_buffer_len[0]];
         recv_yd[m]= new double [to_recv_buffer_len[0]];
         send_xd[m]= new double [to_send_buffer_len[0]];
@@ -712,18 +708,18 @@ This code extend $xd$ (real part of wave function) , $yd$ (imaginary part of wav
 
 ```cpp
     // construct local_dirow, local_dicol
-    local_dirow[0].reserve(dmatnum[0]);
-    local_dicol[0].reserve(dmatnum[0]);
-    for(i=0;i<dmatnum[0];i++){
-        local_dirow[0].push_back(dirow[0][i] - my_id * vsize);  // set local index for row index
-        col_index_to_search= dicol[0][i];
+    local_dirow[0].reserve(monomer_matnum[0]);
+    local_dicol[0].reserve(monomer_matnum[0]);
+    for(i=0;i<monomer_matnum[0];i++){
+        local_dirow[0].push_back(monomer_irow[0][i] - my_id * vsize);  // set local index for row index
+        col_index_to_search= monomer_icol[0][i];
         search_Ind=(int *) bsearch(&col_index_to_search,remoteVecIndex[0],to_recv_buffer_len[0],sizeof(int),compar);
         if(search_Ind!=NULL){
             // this column index is not in local matrix, and we should get it from other process (remoteVec)
-            local_dicol[0].push_back(dmatsize[0] + (search_Ind-remoteVecIndex[0]) );
+            local_dicol[0].push_back(monomer_matsize[0] + (search_Ind-remoteVecIndex[0]) );
         }
         else{ // this column index is in local matrix.
-            local_dicol[0].push_back (dicol[0][i] - my_id * vsize );
+            local_dicol[0].push_back (monomer_icol[0][i] - my_id * vsize );
         }
     }
 ```
@@ -743,7 +739,7 @@ local_dicol  is in $[n_{1} , n_{N}]$ if $H[n,m]$ has $m \in [n_{1} , n_{N}]$ , o
 #### 2 . Evolve wave function $\psi$       SUR_one_step():
 
 ```cpp
-void detector::SUR_onestep_MPI(){
+void monomer::SUR_onestep_MPI(){
     int m, i;
     int irow,icol;
     int nearby_state_list_size = sampling_state_index.size();
@@ -752,23 +748,23 @@ void detector::SUR_onestep_MPI(){
     // update imaginary part of wave function calculated in different process.
     update_dy(nearby_state_list_size);
     // SUR algorithm
-    for(i=0;i<dmatnum[0];i++){
+    for(i=0;i<monomer_matnum[0];i++){
         // make sure when we compute off-diagonal matrix, we record both symmetric and asymmetric part
         irow = local_dirow[0][i];
         icol = local_dicol[0][i]; // compute to point to colindex in
         for(m=0;m<nearby_state_list_size;m++) {
-            xd[m][irow] = xd[m][irow] + dmat[0][i] * yd[m][icol] * cf;
+            xd[m][irow] = xd[m][irow] + monomer_mat[0][i] * yd[m][icol] * cf;
         }
     }
 
     // update real part of wave function calculated in different process.
     update_dx(nearby_state_list_size);
     // SUR algorithm.
-    for(i=0;i<dmatnum[0];i++){
+    for(i=0;i<monomer_matnum[0];i++){
         irow= local_dirow[0][i];
         icol= local_dicol[0][i];
         for(m=0;m<nearby_state_list_size;m++){
-            yd[m][irow] = yd[m][irow] - dmat[0][i] * xd[m][icol] * cf;
+            yd[m][irow] = yd[m][irow] - monomer_mat[0][i] * xd[m][icol] * cf;
         }
     }
 

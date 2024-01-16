@@ -26,37 +26,37 @@ void convert_dv(const vector<vector<int>> & vec_2d, vector <int>  & vec_1d , vec
 }
 
 // this function is used in construct_dv_dirow_dicol_dmatrix_MPI.
-// Meanwhile we also use it when we load detector hamiltonian.
-void detector::Scatter_dirow_dicol_dmatrix(vector <double> * dmat_all, vector<int> * dirow_data, vector<int> * dicol_data,
-        int ** vector_size,int **vector_displs , ofstream & log){
+// Meanwhile we also use it when we load monomer hamiltonian.
+void monomer::Scatter_dirow_dicol_dmatrix(vector <double> * dmat_all, vector<int> * dirow_data, vector<int> * dicol_data,
+                                          int ** vector_size, int **vector_displs , ofstream & log){
     // dmat_all , dirow_data, dicol_data contain data in all process. This information is stored in master process (process id =0)
     // vector_size indicate size for each process. vector_displacement indicate displacement for data in each process.
     int i;
     int v_size;
-    // use MPI_Scatterv to scatter dmat to other process.
+    // use MPI_Scatterv to scatter monomer_mat to other process.
     int m;
     for(m=0; m < electronic_state_num; m++) {
         // tell each process the size of vector they will receive.
         MPI_Scatter(&vector_size[m][0],1,MPI_INT,&v_size,1,MPI_INT,0,MPI_COMM_WORLD);
         // reserve space:
-        dmat[m].reserve(v_size);  // reserve space to receive buffer from Scatterv
-        dirow[m].reserve(v_size);
-        dicol[m].reserve(v_size);
+        monomer_mat[m].reserve(v_size);  // reserve space to receive buffer from Scatterv
+        monomer_irow[m].reserve(v_size);
+        monomer_icol[m].reserve(v_size);
         double  * temp_dmat = new double [v_size];
         int *  temp_dirow= new int [v_size];
         int * temp_dicol = new int [v_size];
-        // use MPI_Scatterv to scatter dmat. for send buffer for std::vector, it should be vector.data().
+        // use MPI_Scatterv to scatter monomer_mat. for send buffer for std::vector, it should be vector.data().
         MPI_Scatterv((void *)(dmat_all[m]).data(),vector_size[m],vector_displs[m],MPI_DOUBLE,
                 &temp_dmat[0],v_size,MPI_DOUBLE,0,MPI_COMM_WORLD);
-        // for dirow, dicol.
+        // for monomer_irow, monomer_icol.
         MPI_Scatterv((void *) (dirow_data[m]).data(), vector_size[m],vector_displs[m],MPI_INT,
                 &temp_dirow[0],v_size, MPI_INT,0,MPI_COMM_WORLD);
         MPI_Scatterv((void *) (dicol_data[m]).data(),vector_size[m], vector_displs[m], MPI_INT,
                 &temp_dicol[0],v_size,MPI_INT,0,MPI_COMM_WORLD);
         for(i=0;i<v_size;i++){
-            dmat[m].push_back(temp_dmat[i]);
-            dirow[m].push_back(temp_dirow[i]);
-            dicol[m].push_back(temp_dicol[i]);
+            monomer_mat[m].push_back(temp_dmat[i]);
+            monomer_irow[m].push_back(temp_dirow[i]);
+            monomer_icol[m].push_back(temp_dicol[i]);
         };
         delete [] temp_dirow;
         delete [] temp_dicol;
@@ -64,9 +64,9 @@ void detector::Scatter_dirow_dicol_dmatrix(vector <double> * dmat_all, vector<in
     }
 }
 
-// We will use this function to scatter dv to other process, used in construct_dirow_dicol_dv and load_detector_Hamiltonian()
-void detector::Scatter_dv(vector<int> & total_mat_num){
-    // The number of state is evenly distributed for detector vmode in our program, only know total_mat_num we could infer the size for each process and corresponding displacement.
+// We will use this function to scatter monomer_vibrational_states_quantum_number_list to other process, used in construct_dirow_dicol_dv and load_detector_Hamiltonian()
+void monomer::Scatter_dv(vector<int> & total_mat_num){
+    // The number of state is evenly distributed for monomer vmode in our program, only know total_mat_num we could infer the size for each process and corresponding displacement.
     int i,j;
     int * vector_2d_displs, * vector_2d_size;  // vector_displs: displacement of vector, vector_size: size of vector to be sent. (For MPI_Scatterv)
     int vsize;
@@ -89,7 +89,7 @@ void detector::Scatter_dv(vector<int> & total_mat_num){
             element_size.clear();
             receive_vmode.clear();
             // convert 2d vector into 1d vector to send.
-            convert_dv(dv_all[m],vmode_1d,displacement,element_size);
+            convert_dv(monomer_vibrational_states_all[m], vmode_1d, displacement, element_size);
             //----------------------------------------------------------
             // size to send for 1d array.
             vsize= total_mat_num[m]/num_proc;
@@ -115,7 +115,7 @@ void detector::Scatter_dv(vector<int> & total_mat_num){
         receive_vmode.reserve(vsize_2d);
         MPI_Scatterv((void*)vmode_1d.data(),vector_2d_size,vector_2d_displs,MPI_INT,
                      (void *) receive_vmode.data(), vsize_2d, MPI_INT,0,MPI_COMM_WORLD );
-        // parse 1d array: vsize_2d to 2d dv.
+        // parse 1d array: vsize_2d to 2d monomer_vibrational_states_quantum_number_list.
         int index=0;
         for(i=0;i<vsize;i++){
             vector <int> temp_vmode;
@@ -123,14 +123,14 @@ void detector::Scatter_dv(vector<int> & total_mat_num){
                 temp_vmode.push_back(receive_vmode[index]);
                 index= index+1;
             }
-            dv[m].push_back(temp_vmode);
+            monomer_vibrational_states_quantum_number_list[m].push_back(temp_vmode);
         }
     }
     delete [] vector_2d_size;
     delete [] vector_2d_displs;
 }
 
-void detector::gather_xd_yd(){
+void monomer::gather_xd_yd(){
     int i,j;
     int ** dmatsize_offset = new int * [electronic_state_num];
     for(i=0; i < electronic_state_num; i++){
@@ -140,15 +140,15 @@ void detector::gather_xd_yd(){
     for(i=0; i < electronic_state_num; i++){
         dmatsize_offset[i][0]=0;  // compute offset
         for(j=1;j<num_proc;j++){
-            dmatsize_offset[i][j]= dmatsize_offset[i][j-1] + dmatsize_each_process[i][j-1];
+            dmatsize_offset[i][j]= dmatsize_offset[i][j-1] + monomer_matsize_each_process[i][j - 1];
         }
     }
 
     for(i=0; i < electronic_state_num; i++){
-        MPI_Allgatherv(&xd[i][0],dmatsize[i],MPI_DOUBLE,
-                       &xd_all[i][0],dmatsize_each_process[i],dmatsize_offset[i],MPI_DOUBLE,MPI_COMM_WORLD);
-        MPI_Allgatherv(&yd[i][0],dmatsize[i],MPI_DOUBLE,
-                       &yd_all[i][0],dmatsize_each_process[i],dmatsize_offset[i],MPI_DOUBLE,MPI_COMM_WORLD);
+        MPI_Allgatherv(&xd[i][0], monomer_matsize[i], MPI_DOUBLE,
+                       &xd_all[i][0], monomer_matsize_each_process[i], dmatsize_offset[i], MPI_DOUBLE, MPI_COMM_WORLD);
+        MPI_Allgatherv(&yd[i][0], monomer_matsize[i], MPI_DOUBLE,
+                       &yd_all[i][0], monomer_matsize_each_process[i], dmatsize_offset[i], MPI_DOUBLE, MPI_COMM_WORLD);
     }
 
     // free space
@@ -158,7 +158,7 @@ void detector::gather_xd_yd(){
     delete [] dmatsize_offset;
 }
 
-void detector:: Scatter_xd_yd(){
+void monomer:: Scatter_xd_yd(){
     int m,i;
     int displacement;
     int ** displacement_list;
@@ -171,12 +171,12 @@ void detector:: Scatter_xd_yd(){
         displacement = 0;
         for(i=0;i<num_proc;i++){
             displacement_list[m][i]= displacement;
-            displacement = displacement + dmatsize_each_process[m][i];
+            displacement = displacement + monomer_matsize_each_process[m][i];
         }
     }
     for(m=0; m < electronic_state_num; m++) {
-        MPI_Scatterv(&xd_all[m][0],dmatsize_each_process[m],displacement_list[m],MPI_DOUBLE,&xd[m][0],dmatsize[m],MPI_DOUBLE,0,MPI_COMM_WORLD);
-        MPI_Scatterv(&yd_all[m][0],dmatsize_each_process[m],displacement_list[m],MPI_DOUBLE,&yd[m][0],dmatsize[m],MPI_DOUBLE,0,MPI_COMM_WORLD);
+        MPI_Scatterv(&xd_all[m][0], monomer_matsize_each_process[m], displacement_list[m], MPI_DOUBLE, &xd[m][0], monomer_matsize[m], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Scatterv(&yd_all[m][0], monomer_matsize_each_process[m], displacement_list[m], MPI_DOUBLE, &yd[m][0], monomer_matsize[m], MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
 
     // free the space
@@ -212,11 +212,11 @@ void full_system::scatter_x_y(double * x_all, double * y_all){
 }
 
 
-void detector::Broadcast_dv_all(){
+void monomer::Broadcast_dv_all(){
     int m,i,j;
-    // ----------------Broadcast vmode0, vmode1 -------------------------------
+    // ----------------Broadcast monomer_qn_list0, monomer_qn_list1 -------------------------------
     vector<vector<int>> * v_ptr;
-    // ------------- For sending vmode0,vmode1 --------------------------
+    // ------------- For sending monomer_qn_list0,monomer_qn_list1 --------------------------
     vector<int> vmode_1d;
     vector<int> displacement;
     vector <int> element_size;
@@ -227,8 +227,8 @@ void detector::Broadcast_dv_all(){
         vmode_1d.clear();
         displacement.clear();
         element_size.clear();
-        if (m == 0) v_ptr = &(dv_all[0]);
-        else v_ptr = &(dv_all[1]);
+        if (m == 0) v_ptr = &(monomer_vibrational_states_all[0]);
+        else v_ptr = &(monomer_vibrational_states_all[1]);
         if(my_id==0) {
             convert_dv(*v_ptr, vmode_1d, displacement, element_size);
             vmode_1d_size = vmode_1d.size();
@@ -249,7 +249,7 @@ void detector::Broadcast_dv_all(){
             MPI_Bcast((void *) vmode_1d.data(),vmode_1d_size,MPI_INT,0,MPI_COMM_WORLD);
 
             int index=0;
-            // convert vmode_1d to vmode0 / vmode1
+            // convert vmode_1d to monomer_qn_list0 / monomer_qn_list1
             for(i=0;i<element_number;i++){
                 vector<int> dv_vmode;
                 dv_vmode.reserve(element_size[i]);
