@@ -1,3 +1,8 @@
+
+# About
+Code for paper: C. Zhang, M. Gruebele, D. E. Logan, and P. G. Wolynes, Surface Crossing and Energy Flow in Many-Dimensional Quantum Systems, Proc. Natl. Acad. Sci. U.S.A. 120, e2221690120 (2023)
+https://doi.org/10.1073/pnas.2221690120
+
 # Note about code
 
 ## How to configure and run the code:
@@ -774,3 +779,7 @@ void monomer::SUR_onestep_MPI(){
 See before we do  $H \times \psi$ we have  : **update_dx()**  , **update_dy()** .
 
 These functions are for upodating elements of $\psi(m)$ for $H(n,m) \neq 0$  if $m$ is not in local array of wave function $\psi$ .
+
+
+
+
