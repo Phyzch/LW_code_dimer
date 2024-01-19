@@ -23,21 +23,21 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
     int mat_index = 0;
     double energy;
     // each process responsible to couple monomer 1's state with monomer 2's state to form state in x,y.
-    int vsize_d1 = d.total_monomer_mat_size[0] / num_proc;
-    int vsize_d2 = d.total_monomer_mat_size[1] / num_proc;
+    int vsize_monomer1 = d.total_monomer_mat_size[0] / num_proc;
+    int vsize_monomer2 = d.total_monomer_mat_size[1] / num_proc;
 
     // we divide the whole matrix into different process according to the quantum number in monomer 1.
-    int begin_index_d1 = my_id * vsize_d1;
-    int end_index_d1;
+    int begin_index_monomer1 = my_id * vsize_monomer1;
+    int end_index_monomer1;
     if(my_id != num_proc - 1){
-        end_index_d1= (my_id +1) * vsize_d1;
+        end_index_monomer1= (my_id + 1) * vsize_monomer1;
     }
     else{
-        end_index_d1 = d.total_monomer_mat_size[0];
+        end_index_monomer1 = d.total_monomer_mat_size[0];
     }
 
-    int initial_state_d1_global_index = vsize_d1 * d.initial_state_pc_id[0] + d.initial_state_index[0];
-    int initial_state_d2_global_index = vsize_d2 * d.initial_state_pc_id[1] + d.initial_state_index[1];
+    int initial_state_monomer1_global_index = vsize_monomer1 * d.initial_state_pc_id[0] + d.initial_state_index[0];
+    int initial_state_monomer2_global_index = vsize_monomer2 * d.initial_state_pc_id[1] + d.initial_state_index[1];
 
     initial_dimer_state_pc_id = d.initial_state_pc_id[0]; // states are sort according to d1 state.
 
@@ -45,20 +45,20 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
     // vibrational_state_index_list : dimer vibrational states' vibrational number in each monomer (vibrational_state_index_list[0], vibrational_state_index_list[1])
     vibrational_state_index_list = new vector <int> [s.exciton_state_num];
 
-    for(j= begin_index_d1 ; j< end_index_d1;j++){ // index in monomer 1 (monomer 1)
+    for(j= begin_index_monomer1 ; j < end_index_monomer1; j++){ // index in monomer 1 (monomer 1)
         for (k=0;k<d.total_monomer_mat_size[1]; k++) {  // index in monomer 2 (monomer 2)
 
             for(i=0;i<s.tlmatsize;i++){ // index for different PES.
 
-                if( j == initial_state_d1_global_index and k== initial_state_d2_global_index and i==0 ){
+                if(j == initial_state_monomer1_global_index and k == initial_state_monomer2_global_index and i == 0 ){
                     if (my_id != initial_dimer_state_pc_id){
-                        printf("wrong. dimer pc id should be equal to detector1 state id.");
+                        printf("wrong. dimer pc id should be equal to monomer1 state id.");
                         MPI_Abort(MPI_COMM_WORLD, -25);
                     }
                     initial_dimer_state_index = mat_index;
                 }
 
-                energy = s.electronic_state_energy[i] + d.dmat_diagonal_global0[j] + d.dmat_diagonal_global1[k]; // energy of electronic state (s.tlmat[i]) + energy in two monomer(d.monomer1_vib_state_energy_all_pc[j] + d.monomer2_vib_state_energy_all_pc[k]).
+                energy = s.exciton_state_energy[i] + monomer1_vib_state_energy_all_pc[j] + monomer2_vib_state_energy_all_pc[k]; // energy of electronic state (s.tlmat[i]) + energy in two monomer(d.monomer1_vib_state_energy_all_pc[j] + d.monomer2_vib_state_energy_all_pc[k]).
                 exciton_state_index_list.push_back(i);
                 vibrational_state_index_list[0].push_back(j); // vibrational_state_index_list record monomer index across process (global index , not index in each process)
                 vibrational_state_index_list[1].push_back(k);
@@ -130,8 +130,8 @@ void full_system::Initial_state_MPI() {
     double value;
     for (i = 0; i < matsize; i++) {
         // (x1 + i y1) (x2 + i y2) (x3 + i y3)
-        x1 = s.x_electronic[exciton_state_index_list[i]]; // here we only have two choice: state initially in electronic state 1 or in electronic state 2.
-        y1 = s.y_electronic[exciton_state_index_list[i]];
+        x1 = s.x_exciton[exciton_state_index_list[i]]; // here we only have two choice: state initially in electronic state 1 or in electronic state 2.
+        y1 = s.y_exciton[exciton_state_index_list[i]];
         x2 = d.xd_all[0][vibrational_state_index_list[0][i]];
         y2 = d.yd_all[0][vibrational_state_index_list[0][i]];
         x3 = d.xd_all[1][vibrational_state_index_list[1][i]];

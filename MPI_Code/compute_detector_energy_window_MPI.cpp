@@ -98,7 +98,7 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
     if(my_id==0){
         int i, j, k;
         int i1, i2;
-        double  detector0_energy, detector1_energy;
+        double  monomer0_energy, monomer1_energy;
         // monomer0_qn and monomer1_qn indicate current monomer mode index we are calculating energy.
         vector<int> monomer0_qn(d.nmodes[0]);
         vector <int> monomer1_qn(d.nmodes[1]);
@@ -113,7 +113,7 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
         monomer0_qn[0] = -1; // this is for:  when we go into code: monomer0_qn[i]= monomer0_qn[i]+1, our first state is |000000>
         while (1) {
             label2:;  // label2 is for detector1 to jump out of while(1) loop (this is inner layer of while(1))
-            detector0_energy = 0;
+            monomer0_energy = 0;
             for (i1 = 0; i1 < d.nmodes[0]; i1++) {  // loop through detector0
                 // define the way we loop through detector0:
                 monomer0_qn[i1] = monomer0_qn[i1] + 1;
@@ -128,16 +128,16 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
             for (i = 0; i < d.nmodes[0]; i++) {
                 if (self_anharmonicity_bool){
                     // add self-anharmonicity
-                    detector0_energy = detector0_energy +  d.mfreq[0][i] * (monomer0_qn[i] - pow(monomer0_qn[i], 2) * d.mfreq[0][i] / (4 * self_anharmonicity_D) );
+                    monomer0_energy = monomer0_energy + d.mfreq[0][i] * (monomer0_qn[i] - pow(monomer0_qn[i], 2) * d.mfreq[0][i] / (4 * self_anharmonicity_D) );
                 }
                 else{
-                    detector0_energy = detector0_energy + d.mfreq[0][i] * monomer0_qn[i] ;
+                    monomer0_energy = monomer0_energy + d.mfreq[0][i] * monomer0_qn[i] ;
                 }
             }
 
             //--------------------------------------------------------------------------------------------
             // criteria below make sure monomer 0 's energy is reasonable.
-            if (detector0_energy > d.initial_state_energy[0] + d.vibrational_energy_window_size) {
+            if (monomer0_energy > d.initial_state_energy[0] + d.vibrational_energy_window_size) {
                 // monomer 0's energy can not be larger than its initial energy + photon energy
                 // jump to next monomer state.
                 k = 0;
@@ -155,8 +155,8 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
             }
 
             // criteria for energy window around bright_state and lower bright state for monomer 0
-            if ((detector0_energy > d.initial_state_energy[0] - d.vibrational_energy_window_size and
-                 detector0_energy < d.initial_state_energy[0] + d.vibrational_energy_window_size)
+            if ((monomer0_energy > d.initial_state_energy[0] - d.vibrational_energy_window_size and
+                 monomer0_energy < d.initial_state_energy[0] + d.vibrational_energy_window_size)
                     )
                 ;
             else {
@@ -182,7 +182,7 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
                 }
                 // when we push back we should consider arrange them in order. We compute location to insert in find_position_for_insert_binary() function:
                 monomer_qn_list0.insert(monomer_qn_list0.begin() + location, monomer0_qn);
-                monomer1_vib_state_energy_all_pc.insert(monomer1_vib_state_energy_all_pc.begin() + location, detector0_energy);
+                monomer1_vib_state_energy_all_pc.insert(monomer1_vib_state_energy_all_pc.begin() + location, monomer0_energy);
             }
         }
         label1:;
@@ -193,7 +193,7 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
         monomer1_qn[0] = -1; // this is when we go into code: monomer1_qn[i] = monomer1_qn[i]+1. our first state is |000000>
         while (1) { // loop through monomer 1
             label3:;
-            detector1_energy = 0;
+            monomer1_energy = 0;
             for (i2 = 0; i2 < d.nmodes[1]; i2++) {
                 // define the way we loop through detector1
                 monomer1_qn[i2] = monomer1_qn[i2] + 1;
@@ -208,16 +208,16 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
             for (i = 0; i < d.nmodes[1]; i++) {
                 if (self_anharmonicity_bool){
                     // add self-anharmonicity
-                    detector1_energy = detector1_energy +  d.mfreq[1][i] * (monomer1_qn[i] - pow(monomer1_qn[i], 2) * d.mfreq[1][i] / (4 * self_anharmonicity_D) );
+                    monomer1_energy = monomer1_energy + d.mfreq[1][i] * (monomer1_qn[i] - pow(monomer1_qn[i], 2) * d.mfreq[1][i] / (4 * self_anharmonicity_D) );
                 }
                 else{
-                    detector1_energy = detector1_energy + monomer1_qn[i] * d.mfreq[1][i];
+                    monomer1_energy = monomer1_energy + monomer1_qn[i] * d.mfreq[1][i];
                 }
             }
             // --------------------------------------------------------------
             //  criteria below make sure monomer 1's energy is reasonable:
             //  we exclude states whose vibrational energy is too high.
-            if (detector1_energy > d.initial_state_energy[1] + d.vibrational_energy_window_size) {
+            if (monomer1_energy > d.initial_state_energy[1] + d.vibrational_energy_window_size) {
                 // initial energy is system energy.
                 // monomer 1 's energy can not be larger than its initial energy + photon energy
                 j = 0;
@@ -235,10 +235,10 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
             }
 
             // criteria for energy window around bright_state and lower bright state for monomer 1
-            if ((detector1_energy > d.initial_state_energy[1] -
-                                    d.vibrational_energy_window_size and
-                 detector1_energy < d.initial_state_energy[1] +
-                                    d.vibrational_energy_window_size )
+            if ((monomer1_energy > d.initial_state_energy[1] -
+                                   d.vibrational_energy_window_size and
+                 monomer1_energy < d.initial_state_energy[1] +
+                                   d.vibrational_energy_window_size )
                     )
             {  // criteria here means we only consider monomer state whose energy is within small energy window
                 ;
@@ -261,7 +261,7 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
                     MPI_Abort(MPI_COMM_WORLD,-15);
                 }
                 monomer_qn_list1.insert(monomer_qn_list1.begin() + location, monomer1_qn);
-                monomer2_vib_state_energy_all_pc.insert(monomer2_vib_state_energy_all_pc.begin() + location, detector1_energy);
+                monomer2_vib_state_energy_all_pc.insert(monomer2_vib_state_energy_all_pc.begin() + location, monomer1_energy);
             }
         }
         label4:;

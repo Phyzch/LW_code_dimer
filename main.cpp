@@ -33,8 +33,8 @@ void read_state_quantum_number_list(string file_path, vector<vector<vector<int>>
 
 int main(int argc,char * argv []) {
     srand(time(0));
-    string path = "//home/phyzch/Presentation/LW_electronic_model/2022 result/spin_boson_LW/BChl_dimer_model/5_mode/"
-                  "batch_simulation_Bigwood_scaling/nonstatistical_states/try/";
+    string home_folder_path = "/home/phyzch/CLionProjects/LW_code_dimer/"; // change this folder to your home folder
+    string path = home_folder_path + "input_example/"; // example input file.
 
 
     string s;

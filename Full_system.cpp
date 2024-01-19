@@ -9,8 +9,11 @@ full_system::full_system(string path1 , vector<vector<int>> & initial_state_quan
 
 	path = path1;
     d.path = path;
-    // read hyper parameter and time step from input.txt
+    // read hyper-parameter and time step from input.txt
     read_input_with_MPI();
+    // here we study dimer model, therefore, there are two monomers.
+    monomer_number = 2;
+    d.monomer_number = monomer_number;
 
 	s.read_MPI(input, output, log);
 	d.read_MPI(input, output, s.exciton_state_num, path);
@@ -22,8 +25,8 @@ full_system::full_system(string path1 , vector<vector<int>> & initial_state_quan
                                         monomer_qn_list0,
                                         monomer_qn_list1);
 
-    d.dmat_diagonal_global0 = monomer1_vib_state_energy_all_pc;
-    d.dmat_diagonal_global1 = monomer2_vib_state_energy_all_pc;
+    d.monomer1_vib_state_energy_all_pc = monomer1_vib_state_energy_all_pc;
+    d.monomer2_vib_state_energy_all_pc = monomer2_vib_state_energy_all_pc;
 
     construct_dimer_Hamiltonian_matrix_with_energy_window_MPI();
 

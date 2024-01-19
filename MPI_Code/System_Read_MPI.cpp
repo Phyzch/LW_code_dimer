@@ -6,7 +6,7 @@
 
 // read parameters for system matrix set up
 void system::read_MPI(ifstream &input, ofstream &output, ofstream &log) {
-    // read energy level electronic_state_energy , initial wavefunction x_electronic, y_electronic
+    // read energy level exciton_state_energy , initial wavefunction x_exciton, y_exciton
     int my_id;
     MPI_Comm_rank(MPI_COMM_WORLD,&my_id);
     if(my_id==0) {
@@ -36,12 +36,12 @@ void system::read_MPI(ifstream &input, ofstream &output, ofstream &log) {
 };
 
 void system::allocate_space(){
-    // x_electronic: real part of system wave function
-    // y_electronic: image part of system wave function
-    // electronic_state_energy: energy level of system's eigen state, also diagonal part of our Hamiltonian matrix
-    x_electronic = new double[exciton_state_num];
-    y_electronic = new double[exciton_state_num];
-    electronic_state_energy = new double[exciton_state_num];
+    // x_exciton: real part of system wave function
+    // y_exciton: image part of system wave function
+    // exciton_state_energy: energy level of system's eigen state, also diagonal part of our Hamiltonian matrix
+    x_exciton = new double[exciton_state_num];
+    y_exciton = new double[exciton_state_num];
+    exciton_state_energy = new double[exciton_state_num];
 }
 
 void system::initialize_energy_level(ifstream & input, ofstream & output){
@@ -51,13 +51,13 @@ void system::initialize_energy_level(ifstream & input, ofstream & output){
     MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
     if(my_id==0) {
         for (i = 0; i < exciton_state_num; i++) {
-            input >> electronic_state_energy [i];
-            output << electronic_state_energy [i] << " ";
+            input >> exciton_state_energy [i];
+            output << exciton_state_energy [i] << " ";
         }
         output << endl;
     }
-    // broadcast electronic_state_energy to all other process. (Variable in class system is all very small, do not have to data decomposition).
-    MPI_Bcast(electronic_state_energy, exciton_state_num, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    // broadcast exciton_state_energy to all other process. (Variable in class system is all very small, do not have to data decomposition).
+    MPI_Bcast(exciton_state_energy, exciton_state_num, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }
 
 void system::initialize_wavefunction(ifstream & input, ofstream & output){
@@ -67,20 +67,20 @@ void system::initialize_wavefunction(ifstream & input, ofstream & output){
 
     if(my_id==0) {
         for (i = 0; i < tlmatsize; i++) {
-            // x_electronic: real part of wave function.
-            // y_electronic: imag part of wave function
-            input >> x_electronic[i] >> y_electronic[i];
-            output << x_electronic[i] << " " << y_electronic[i] << endl;
-            norm = norm + pow(x_electronic[i], 2) + pow(y_electronic[i], 2);
+            // x_exciton: real part of wave function.
+            // y_exciton: imag part of wave function
+            input >> x_exciton[i] >> y_exciton [i];
+            output << x_exciton[i] << " " << y_exciton[i] << endl;
+            norm = norm + pow(x_exciton[i], 2) + pow(y_exciton[i], 2);
         }
         norm = 1 / sqrt(norm);
         for (i = 0; i < tlmatsize; i++) {
-            x_electronic[i] = x_electronic[i] * norm;
-            y_electronic[i] = y_electronic[i] * norm;
+            x_exciton[i] = x_exciton[i] * norm;
+            y_exciton[i] = y_exciton[i] * norm;
         }
     }
-    MPI_Bcast(x_electronic, tlmatsize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(y_electronic, tlmatsize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(x_exciton, tlmatsize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(y_exciton, tlmatsize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }
 
 void system::initialize_state_energy(){

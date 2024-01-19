@@ -15,10 +15,12 @@ void full_system:: read_input_with_MPI(){
             MPI_Abort(MPI_COMM_WORLD, -2);  // Abort the process and return error code -2. (input file can't open)
         }
         // including vib states with 1-norm distance smaller than Rmax as basis set
-        // V_intra: anharmonic vibrational coupling strength in one monomer.
+        // V_intra: anharmonic vibrational coupling strength V0 in one monomer. cubic anharmonic coupling strength V3 = V0 * a^3.
         input >> Rmax >> d.V_intra >> d.vibrational_energy_window_size >> nonadiabatic_coupling;
+
         // read time used for simulation.  delt: time step.  tmax: maximum time for simulation.   tprint: time step to print result.
         input >> delt >> tmax >> tprint;
+
         // check if input is valid
         log.open(path + "log.txt");  // log to record the error information
 
@@ -57,7 +59,7 @@ void full_system:: read_input_with_MPI(){
     MPI_Bcast(&tmax,1 ,MPI_DOUBLE,0,MPI_COMM_WORLD);
     MPI_Bcast(&tprint,1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    // used to rescale the matrix element amplitude.
+    // used to change the unit to ps.
     cf = 0.0299792458*delt * pi2;
 }
 

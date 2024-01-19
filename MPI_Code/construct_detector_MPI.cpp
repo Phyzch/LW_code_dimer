@@ -11,35 +11,35 @@ void Broadcast_dmat_vmode(int stlnum, vector<double> & dmat0,  vector<double> & 
 void monomer::allocate_space() {
     int i, j;
 
-    nmodes = new int[electronic_state_num];  //  number of modes in each monomer
+    nmodes = new int[exciton_state_num];  //  number of modes in each monomer
 
-    proptime = new double[electronic_state_num];  //  pre-coupling propagation time
+    proptime = new double[exciton_state_num];  //  pre-coupling propagation time
 
-    nmax = new int *[electronic_state_num];  // maximum number of quanta in eqch mode.
+    nmax = new int *[exciton_state_num];  // maximum number of quanta in eqch mode.
 
-    monomer_matsize = new int[electronic_state_num];   // size of monomer matrix
+    monomer_matsize = new int[exciton_state_num];   // size of monomer matrix
 
-    mfreq = new double *[electronic_state_num];  // mfreq: frequency of each mode here.
+    mfreq = new double *[exciton_state_num];  // mfreq: frequency of each mode here.
 
-    electron_phonon_coupling = new double * [electronic_state_num];
+    exciton_phonon_coupling = new double * [exciton_state_num];
 
-    aij = new double * [electronic_state_num];
+    aij = new double * [exciton_state_num];
 
-    monomer_mat = new vector <double> [electronic_state_num];
+    monomer_mat = new vector <double> [exciton_state_num];
 
-    monomer_irow = new vector<int> [electronic_state_num];
+    monomer_irow = new vector<int> [exciton_state_num];
 
-    monomer_icol = new vector<int> [electronic_state_num];
+    monomer_icol = new vector<int> [exciton_state_num];
 
-    monomer_vibrational_states_quantum_number_list = new vector<vector<int>> [electronic_state_num];
+    monomer_vibrational_states_quantum_number_list = new vector<vector<int>> [exciton_state_num];
 
     // matrix element number for monomer matrix
-    monomer_matnum = new int[electronic_state_num];
+    monomer_matnum = new int[exciton_state_num];
     // off diagonal matrix element number for monomer matrix
-    monomer_offnum = new int[electronic_state_num];
+    monomer_offnum = new int[exciton_state_num];
 
-    xd_all = new double * [electronic_state_num];
-    yd_all = new double * [electronic_state_num];
+    xd_all = new double * [exciton_state_num];
+    yd_all = new double * [exciton_state_num];
 
     // tell monomer total matrix size..
     total_monomer_mat_size.reserve(2);
@@ -50,7 +50,7 @@ void monomer::allocate_space() {
     monomer_offnum_each_process= new int * [2];
     monomer_matnum_each_process= new int * [2];;  // record monomer matrix element number in each process.
     monomer_mat_offset_each_process= new int * [2];; // record local first monomer matrix's index in global matrix.
-    for(i=0;i<electronic_state_num;i++){
+    for(i=0; i < exciton_state_num; i++){
         monomer_matsize_each_process[i]= new int [num_proc];
         monomer_matsize_offset_each_process[i] = new int [num_proc];
         monomer_offnum_each_process[i]= new int [num_proc];
@@ -64,7 +64,7 @@ void monomer:: allocate_space_single_detector(int detector_index){
     int i= detector_index;
     nmax[i] = new int[nmodes[i]];
     mfreq[i] = new double[nmodes[i]];
-    electron_phonon_coupling[i] = new double [nmodes[i]];
+    exciton_phonon_coupling[i] = new double [nmodes[i]];
     aij[i] = new double[nmodes[i]];
 }
 
@@ -73,7 +73,7 @@ void monomer::read_MPI(ifstream & input, ofstream & output, int electronic_state
     int i, j;
     double geometric_mean_frequency;
 
-    electronic_state_num = electronic_state_num1;
+    exciton_state_num = electronic_state_num1;
 
     allocate_space();
     if (my_id==0){
@@ -82,16 +82,16 @@ void monomer::read_MPI(ifstream & input, ofstream & output, int electronic_state
         // cutoff2: cutoff strength for inter-monomer coupling.
         input >>  maxdis >> cutoff >> Franck_condon_factor_cutoff;
         output << "Detector  " << maxdis << " " << cutoff <<  endl;
-        for (i = 0; i < electronic_state_num; i++) {
+        for (i = 0; i < exciton_state_num; i++) {
             input >> nmodes[i] >> proptime[i];
             allocate_space_single_detector(i);
             for (j = 0; j < nmodes[i]; j++) {
-                input >> mfreq[i][j] >> nmax[i][j]  >> electron_phonon_coupling[i][j] ;
+                input >> mfreq[i][j] >> nmax[i][j] >> exciton_phonon_coupling[i][j] ;
             }
         }
 
 
-        for(i=0; i < electronic_state_num; i++){
+        for(i=0; i < exciton_state_num; i++){
             // geometric mean frequency
             geometric_mean_frequency = 1;
             for(j=0; j<nmodes[i];j++){
@@ -108,11 +108,11 @@ void monomer::read_MPI(ifstream & input, ofstream & output, int electronic_state
         }
     }
 
-    MPI_Bcast(&nmodes[0], electronic_state_num, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&proptime[0], electronic_state_num, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nmodes[0], exciton_state_num, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&proptime[0], exciton_state_num, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     if(my_id!=0){
-        for(i=0; i < electronic_state_num; i++){
+        for(i=0; i < exciton_state_num; i++){
             allocate_space_single_detector(i);
         }
     }
@@ -125,9 +125,9 @@ void monomer::read_MPI(ifstream & input, ofstream & output, int electronic_state
     MPI_Bcast(&cutoff,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
     MPI_Bcast(&Franck_condon_factor_cutoff, 1, MPI_DOUBLE, 0,  MPI_COMM_WORLD);
 
-    for(i=0; i < electronic_state_num; i++){
+    for(i=0; i < exciton_state_num; i++){
         MPI_Bcast(&mfreq[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
-        MPI_Bcast(&electron_phonon_coupling[i][0] ,nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
+        MPI_Bcast(&exciton_phonon_coupling[i][0] , nmodes[i], MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(&nmax[i][0],nmodes[i],MPI_INT,0,MPI_COMM_WORLD);
         MPI_Bcast(&aij[i][0],nmodes[i],MPI_DOUBLE,0,MPI_COMM_WORLD);
     }
@@ -150,15 +150,15 @@ void monomer:: construct_monomer_Hamiltonian_MPI(ifstream & input, ofstream & ou
     broadcast_total_dmat();
 
     if(my_id==0){
-        for(m=0; m < electronic_state_num; m++){
+        for(m=0; m < exciton_state_num; m++){
             output << "Matrix for monomer " << m << " : " << total_monomer_mat_size[m] << "  " << total_monomer_mat_off_num[m] << endl;
         }
 
     }
 
-    xd = new vector <double> [electronic_state_num];
-    yd = new vector<double> [electronic_state_num];
-    for (i = 0; i < electronic_state_num; i++) {
+    xd = new vector <double> [exciton_state_num];
+    yd = new vector<double> [exciton_state_num];
+    for (i = 0; i < exciton_state_num; i++) {
         xd[i].reserve(monomer_matsize[i]);
         yd[i].reserve(monomer_matsize[i]);
     }
@@ -170,7 +170,7 @@ void monomer:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log, vector<doubl
     int displacement;
     if(my_id==0){
         total_monomer_mat_size[0]= dmat0.size();
-        if(electronic_state_num == 2){
+        if(exciton_state_num == 2){
             total_monomer_mat_size[1] = dmat1.size();
         }
         else{
@@ -178,7 +178,7 @@ void monomer:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log, vector<doubl
         }
     }
     MPI_Bcast(&total_monomer_mat_size[0], 2, MPI_INT, 0, MPI_COMM_WORLD);
-    for(i=0; i < electronic_state_num; i++){
+    for(i=0; i < exciton_state_num; i++){
         xd_all[i] = new double [total_monomer_mat_size[i]];
         yd_all[i] = new double [total_monomer_mat_size[i]];
     }
@@ -193,7 +193,7 @@ void monomer:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log, vector<doubl
     vector_size = new int *[2];
     displacement_list = new int *[2];
 
-    Broadcast_dmat_vmode(electronic_state_num, dmat0, dmat1, vmode0, vmode1); // broadcast monomer1_vib_state_energy_all_pc, monomer2_vib_state_energy_all_pc, monomer_qn_list0, monomer_qn_list1 to all process to compute off-diagonal matrix.
+    Broadcast_dmat_vmode(exciton_state_num, dmat0, dmat1, vmode0, vmode1); // broadcast monomer1_vib_state_energy_all_pc, monomer2_vib_state_energy_all_pc, monomer_qn_list0, monomer_qn_list1 to all process to compute off-diagonal matrix.
     monomer_vibrational_states_all[0] = vmode0;
     monomer_vibrational_states_all[1] = vmode1;
 
@@ -201,7 +201,7 @@ void monomer:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log, vector<doubl
         dmat_all[0] = dmat0;
         dmat_all[1] = dmat1;
         // prepare monomer_irow, monomer_icol for broadcasting.
-        for (m = 0; m < electronic_state_num; m++) {
+        for (m = 0; m < exciton_state_num; m++) {
             int size = dmat_all[m].size();
             for (i = 0; i < size; i++) {
                 dirow_all[m].push_back(i);
@@ -209,7 +209,7 @@ void monomer:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log, vector<doubl
             }
         }
         // prepare vector size and vector displacement:
-        for (m = 0; m < electronic_state_num; m++) {
+        for (m = 0; m < exciton_state_num; m++) {
             vsize = total_monomer_mat_size[m] / num_proc;
             vsize2 = total_monomer_mat_size[m] - (num_proc - 1) * vsize;
             vector_size[m] = new int[num_proc];  // size of vector to scatter to each process.
@@ -228,22 +228,22 @@ void monomer:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log, vector<doubl
     Scatter_dv(total_monomer_mat_size);  // scatter monomer_vibrational_states_all
     // construct monomer matrix size for each process.
     if(my_id != num_proc-1){
-        for(m=0; m < electronic_state_num; m++) {
+        for(m=0; m < exciton_state_num; m++) {
             vsize= total_monomer_mat_size[m] / num_proc;
             monomer_matsize[m] = vsize;
         }
     }
     else{
-        for(m=0; m < electronic_state_num; m++){
+        for(m=0; m < exciton_state_num; m++){
             vsize= total_monomer_mat_size[m] - total_monomer_mat_size[m] / num_proc * (num_proc - 1);
             monomer_matsize[m]=vsize;
         }
     }
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         MPI_Allgather(&monomer_matsize[m], 1, MPI_INT, &monomer_matsize_each_process[m][0], 1, MPI_INT, MPI_COMM_WORLD);
     }
 
-    for(m=0;m<electronic_state_num;m++){
+    for(m=0; m < exciton_state_num; m++){
         monomer_matsize_offset_each_process[m][0] = 0;
         for(i=1;i<num_proc;i++){
             monomer_matsize_offset_each_process[m][i] = monomer_matsize_offset_each_process[m][i - 1] + monomer_matsize_each_process[m][i - 1];
@@ -251,7 +251,7 @@ void monomer:: construct_dv_dirow_dicol_dmatrix_MPI(ofstream & log, vector<doubl
     }
 
     if(my_id == 0) {
-        for (m = 0; m < electronic_state_num; m++) {
+        for (m = 0; m < exciton_state_num; m++) {
             delete[] vector_size[m];
             delete[] displacement_list[m];
         }
@@ -344,7 +344,7 @@ void monomer::compute_monomer_offdiag_part_MPI(ofstream & log, vector<double> & 
     int position;
     double random_number;
     // different process do different amount of work.
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < monomer_number; m++){
         if(m==0){
             vmode_ptr = &(vmode0);
             dmat_ptr= &(dmat0);
@@ -382,7 +382,7 @@ void monomer::compute_monomer_offdiag_part_MPI(ofstream & log, vector<double> & 
                 if (ntot < maxdis) {
 
                     if (ntot % 2 == 0) {
-                        value = V_intra;  // V=0.03 as requirement.
+                        value = V_intra;  // anharmonic coupling V0. V3 = V0 * a^3. (a is anharmonic scaling factor)
                     } else {
                         value = -V_intra;
                     }
@@ -410,22 +410,22 @@ void monomer::compute_monomer_offdiag_part_MPI(ofstream & log, vector<double> & 
 void monomer:: broadcast_dmatnum_doffnum(){
     int m,i;
     // compute monomer_matnum and monomer_offnum and monomer_matnum_each_process, total_dmatnum, total_doffnum etc.
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         monomer_matnum[m]= monomer_mat[m].size();
         monomer_offnum[m]= monomer_matnum[m] - monomer_matsize[m];
     }
     // compute toatl_dmatnum, total_dmatoffnum
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         MPI_Allreduce(&monomer_matnum[m], &total_monomer_mat_num[m], 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(&monomer_offnum[m], &total_monomer_mat_off_num[m], 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     }
     // broadcast monomer matrix number and monomer matrix off-diagonal number in each process.
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         MPI_Allgather(&monomer_matnum[m], 1, MPI_INT, &monomer_matnum_each_process[m][0], 1, MPI_INT, MPI_COMM_WORLD);
         MPI_Allgather(&monomer_offnum[m], 1, MPI_INT, &monomer_offnum_each_process[m][0], 1, MPI_INT, MPI_COMM_WORLD);
     }
     // compute offset of monomer matrix for each process.
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         monomer_mat_offset_each_process[m][0]=0;
         for(i=1;i<num_proc;i++){
             monomer_mat_offset_each_process[m][i] = monomer_mat_offset_each_process[m][i - 1] + monomer_matnum_each_process[m][i - 1];
@@ -439,11 +439,11 @@ void monomer:: broadcast_total_dmat(){
      construct total_monomer_mat, total_monomer_irow, total_monomer_icol
      use monomer_matnum_each_process,  monomer_mat_offset_each_process\
     */
-    total_monomer_mat= new double * [electronic_state_num];
-    total_monomer_irow= new int * [electronic_state_num];
-    total_monomer_icol= new int * [electronic_state_num];
+    total_monomer_mat= new double * [exciton_state_num];
+    total_monomer_irow= new int * [exciton_state_num];
+    total_monomer_icol= new int * [exciton_state_num];
     int m;
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         total_monomer_mat[m] = new double [total_monomer_mat_num[m]];
         total_monomer_irow[m] = new int [total_monomer_mat_num[m]];
         total_monomer_icol[m] = new int [total_monomer_mat_num[m]];
@@ -464,7 +464,6 @@ void monomer::initialize_monomer_state_MPI(ofstream & log) {
     double norm;
     double total_norm;
     // this way we initialize wave function according to distribution
-    int monomer_number = 2;
     for (m = 0; m < monomer_number; m++) {
         norm = 0;
         int ** control_state;
@@ -521,33 +520,33 @@ void monomer::construct_initial_state_MPI(vector<vector<int>> & initial_state_qu
      */
     int m,i;
 
-    initial_vibrational_state= new int * [electronic_state_num];
-    initial_state_energy= new double [electronic_state_num];
-    for(m=0; m < electronic_state_num; m++){
+    initial_vibrational_state = new int * [exciton_state_num];
+    initial_state_energy= new double [exciton_state_num];
+    for(m=0; m < exciton_state_num; m++){
         initial_vibrational_state[m]= new int [nmodes[m]];
         initial_state_energy[m]=0;
     }
     if(my_id==0){
-        for(m=0; m < electronic_state_num; m++) {
+        for(m=0; m < exciton_state_num; m++) {
             for (i = 0; i < nmodes[m]; i++) {
                 initial_vibrational_state[m][i] = initial_state_quantum_number[m][i];
             }
         }
     }
-    for(m=0; m < electronic_state_num; m++){ // Broad cast initial monomer state.
+    for(m=0; m < exciton_state_num; m++){ // Broad cast initial monomer state.
         MPI_Bcast(&initial_vibrational_state[m][0], nmodes[m], MPI_INT, 0, MPI_COMM_WORLD);
     }
 
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < monomer_number; m++){
         // initialize our initial monomer state.  set dark mode's quanta equal to bright_state.
         for(i=0;i<nmodes[m];i++){
-            initial_state_energy[m]= initial_state_energy[m] + initial_vibrational_state[m][i] * mfreq[m][i] - pow(mfreq[m][i] * initial_vibrational_state[m][i] , 2) / (4 * self_anharmonicity_D);
+            initial_state_energy[m] = initial_state_energy[m] + initial_vibrational_state[m][i] * mfreq[m][i] - pow(mfreq[m][i] * initial_vibrational_state[m][i] , 2) / (4 * self_anharmonicity_D);
         }
     }
 
     if(my_id==0){  // output initial monomer state to output.txt
         cout <<"Initial monomer state:"<<endl;
-        for(m=0; m < electronic_state_num; m++){
+        for(m=0; m < monomer_number; m++){
             for(i=0;i<nmodes[m];i++){
                 cout << initial_vibrational_state[m][i] << " ";
             }
@@ -571,7 +570,7 @@ void monomer:: compute_initial_vibrational_state_index(){
     initial_state_pc_id = new int [2];
 
     // we initialize  initial_state_index.
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         initial_state_index[m] = 0;
         initial_state_pc_id[m] = 0;
     }
@@ -581,7 +580,7 @@ void monomer:: compute_initial_vibrational_state_index(){
     special_state_index = initial_state_index;  // initial vibrational state index in one process
     special_state_pc_id = initial_state_pc_id;  // process id where the initial state resides
     // loop for two monomer.
-    for (m = 0; m < electronic_state_num; m++) {
+    for (m = 0; m < exciton_state_num; m++) {
         special_state_vec.clear();
         for (i = 0; i < nmodes[m]; i++) {
             special_state_vec.push_back(special_state[m][i]);

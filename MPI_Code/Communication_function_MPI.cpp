@@ -35,7 +35,7 @@ void monomer::Scatter_dirow_dicol_dmatrix(vector <double> * dmat_all, vector<int
     int v_size;
     // use MPI_Scatterv to scatter monomer_mat to other process.
     int m;
-    for(m=0; m < electronic_state_num; m++) {
+    for(m=0; m < exciton_state_num; m++) {
         // tell each process the size of vector they will receive.
         MPI_Scatter(&vector_size[m][0],1,MPI_INT,&v_size,1,MPI_INT,0,MPI_COMM_WORLD);
         // reserve space:
@@ -81,7 +81,7 @@ void monomer::Scatter_dv(vector<int> & total_mat_num){
     vector_2d_displs = new int [num_proc];  // for sending 2d vector we need extra displacement.
     vector_2d_size = new int [num_proc];  // foor sending 2d vector we need new size of buffer.
     int m,p;
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         if(my_id==0){
             //--------------------------------------
             vmode_1d.clear();
@@ -132,19 +132,19 @@ void monomer::Scatter_dv(vector<int> & total_mat_num){
 
 void monomer::gather_xd_yd(){
     int i,j;
-    int ** dmatsize_offset = new int * [electronic_state_num];
-    for(i=0; i < electronic_state_num; i++){
+    int ** dmatsize_offset = new int * [exciton_state_num];
+    for(i=0; i < exciton_state_num; i++){
         dmatsize_offset[i]= new int [num_proc];
     }
 
-    for(i=0; i < electronic_state_num; i++){
+    for(i=0; i < exciton_state_num; i++){
         dmatsize_offset[i][0]=0;  // compute offset
         for(j=1;j<num_proc;j++){
             dmatsize_offset[i][j]= dmatsize_offset[i][j-1] + monomer_matsize_each_process[i][j - 1];
         }
     }
 
-    for(i=0; i < electronic_state_num; i++){
+    for(i=0; i < exciton_state_num; i++){
         MPI_Allgatherv(&xd[i][0], monomer_matsize[i], MPI_DOUBLE,
                        &xd_all[i][0], monomer_matsize_each_process[i], dmatsize_offset[i], MPI_DOUBLE, MPI_COMM_WORLD);
         MPI_Allgatherv(&yd[i][0], monomer_matsize[i], MPI_DOUBLE,
@@ -152,7 +152,7 @@ void monomer::gather_xd_yd(){
     }
 
     // free space
-    for(i=0; i < electronic_state_num; i++){
+    for(i=0; i < exciton_state_num; i++){
         delete [] dmatsize_offset[i];
     }
     delete [] dmatsize_offset;
@@ -163,24 +163,24 @@ void monomer:: Scatter_xd_yd(){
     int displacement;
     int ** displacement_list;
     displacement_list = new int * [2];
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         displacement_list[m] = new int [num_proc];
     }
 
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         displacement = 0;
         for(i=0;i<num_proc;i++){
             displacement_list[m][i]= displacement;
             displacement = displacement + monomer_matsize_each_process[m][i];
         }
     }
-    for(m=0; m < electronic_state_num; m++) {
+    for(m=0; m < exciton_state_num; m++) {
         MPI_Scatterv(&xd_all[m][0], monomer_matsize_each_process[m], displacement_list[m], MPI_DOUBLE, &xd[m][0], monomer_matsize[m], MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Scatterv(&yd_all[m][0], monomer_matsize_each_process[m], displacement_list[m], MPI_DOUBLE, &yd[m][0], monomer_matsize[m], MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
 
     // free the space
-    for(m=0; m < electronic_state_num; m++){
+    for(m=0; m < exciton_state_num; m++){
         delete [] displacement_list[m];
     }
     delete [] displacement_list;
@@ -223,7 +223,7 @@ void monomer::Broadcast_dv_all(){
     int vmode_1d_size;
     int element_number;
 //-------------------------------------------
-    for (m = 0; m < electronic_state_num; m++) {
+    for (m = 0; m < exciton_state_num; m++) {
         vmode_1d.clear();
         displacement.clear();
         element_size.clear();

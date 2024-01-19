@@ -1,5 +1,5 @@
-
 # About
+
 Code for paper: C. Zhang, M. Gruebele, D. E. Logan, and P. G. Wolynes, Surface Crossing and Energy Flow in Many-Dimensional Quantum Systems, Proc. Natl. Acad. Sci. U.S.A. 120, e2221690120 (2023)
 https://doi.org/10.1073/pnas.2221690120
 
@@ -16,8 +16,6 @@ https://doi.org/10.1073/pnas.2221690120
         Then the folder name must be : **my_project_LW_model**        
 
             
-
-
 
 2. in util.h
 
@@ -56,27 +54,36 @@ in my machine, I have #include<mpi/mpi.h>. This may be problematic on cluster or
    ### Full_system(string path1)
 
 ```cpp
-full_system::full_system(string path1) {
+full_system::full_system(string path1 , vector<vector<int>> & initial_state_quantum_number) {
+	path = path1;
+    d.path = path;
+    // read hyper parameter and time step from input.txt
+    read_input_with_MPI();
 
- path = path1;
- d.path = path;
- d.cvpt_path = cvpt_path1;
+	s.read_MPI(input, output, log);
+	d.read_MPI(input, output, s.exciton_state_num, path);
+    d.construct_initial_state_MPI( initial_state_quantum_number);
 
- // read parameter and time step from input.txt
- read_input_with_MPI();
+    compute_monomer_vib_state_basis_set_size_MPI();
 
- s.read_MPI(input, output, log);
- d.read_MPI(input, output, log, s.tlnum, s.tldim,path);
- d.construct_initial_state_MPI(input,output);
+    d.construct_monomer_Hamiltonian_MPI(input, output, log, monomer1_vib_state_energy_all_pc, monomer2_vib_state_energy_all_pc,
+                                        monomer_qn_list0,
+                                        monomer_qn_list1);
 
- // We construct vibrational state for each electronic state . vibrational state is represented by their mode quanta , for example (1,0,0,0,2,0,1) etc.
- compute_detector_matrix_size_MPI_sphere();
+    d.monomer1_vib_state_energy_all_pc = monomer1_vib_state_energy_all_pc;
+    d.monomer2_vib_state_energy_all_pc = monomer2_vib_state_energy_all_pc;
 
- // we construct anharmonic coupling between states, thus finish constructing Hamiltonian.
- d.construct_monomer_Hamiltonian_MPI(input,output,log,dmat0,dmat1,monomer_qn_list0,monomer_qn_list1);
- cout<<"Finish constructing Matrix"<<endl;
+    construct_dimer_Hamiltonian_matrix_with_energy_window_MPI();
+
+	if(my_id ==0){
+        cout<<"Finish constructing Matrix"<<endl;
+        output_calculation_size_info(); // check if all matrix's dimension is right.
+	}
 
 }
+	
+
+
 ```
 
 This function construct Hamiltonian  $H$ for our systems.
@@ -87,239 +94,108 @@ s.read_MPI()  , d.read_MPI()  : read parameter from input file
 
 (only process with rank 0 read the parameters and then broadcast parameter to all other process.  
 
-- **You can't let multiple process access one file at same time, this may cause error.**
+- **You can't let multiple process access one file at the same time, this may cause error.**
 
-- **Make sure parameter read from input.txt is broadcasted to all other process, otherwise the simulation in other process will raise error because they don't know the value of the parameter !!!**
+- **Make sure parameters read from input.txt are broadcasted to all other process, otherwise the simulation in other process will raise error because they don't know the value of the parameter !!!**
 
 )
 
-There are many paramters read but not used there, You can delete it as you wish.
+
 
 #### 2. construct_initial_state_MPI()
 
-construct initial state.
+compute vibrational state energy of initial vibrational state we prepared in calculation.
 
-- First index [0] : stands for electronic state  (0 for electronic state 0, 
-  
-  1 for electronic state 1)
+Notice there is also self-anharmonicity we induced in Hamiltonian to avoid resonance.
 
-    |01111> : at electronci state 0, and vibrational state is |1111>
 
-|10101> : at electronic state 1, vib state is |0101>
 
-        We set $|n_{0} = 0 \rangle $ stands for ground electronic state, 
-
-                   $|n_{0} = 1 \rangle $ stands for excited electronic state 
-
-- Second index [1] : stands for first vibrational state. 
-
-In our model, first vibrational state is shifted by $\lambda (b + b^{\dagger})$ , and $b \rightarrow b^{\dagger}$ as in Hamiltonian : 
-
-$H^{\prime \prime}=\sum_{\sigma}|\sigma\rangle\left\langle\sigma\left|\left(\frac{\sigma}{2} \epsilon+\sigma \sum_{\alpha} \lambda_{\alpha \sigma}\left(b_{\alpha}^{\dagger}+b_{\alpha}\right)+\sum_{\alpha} \hbar \omega_{\alpha \sigma} b_{\alpha}^{\dagger} b_{\alpha}+H_{a n}\right)+t \sum_{\sigma}\right| \sigma\right\rangle\langle-\sigma|$
-
-- All other index is other vibrational dof .  Which is not shifted. 
-  
-  For overlap between two state $|n^a\rangle =|n^{a}_{0} , n^{a}_1 , n^{a}_{2} , \cdots  \rangle $   , as $n_{0}^{a}$ is index for electronic state, $n_{1}^{a}$ is index for first vibrational state , then $n_{2}^{a} , n_{3}^{a} j, \cdots $ is quantum number for all other vibrational state.  
-
-If we want overlap between two state : $\langle n^{a} | t (|\sigma\rangle \langle -\sigma|) |n^{b} \rangle \neq 0$ ,   ( this is coupling between electronic state as shown in Hamiltonian) , we must have :
-
-$n_{0}^{a} \neq n_{0}^{b}$ , $n_{m}^{a} = n_{m}^{b}  (m=2,3,\cdots)$ , and there is extra factor as :
-
-$\langle n_{1}^{a} | n_{1}^{b} \rangle $  : as first vibrational mode is shifted, we do not require $n_{1}^{a} = n_{1}^{b}$
-
-#### Code for vib state $|m\rangle$ , $|n\rangle$ of first vib mode
-
-Now about following code : 
+#### 3. compute_monomer_vib_state_basis_set_size_MPI( )
 
 ```cpp
-    # See Logan's note eq.(47).
-     double Crossing_point_quanta_spin_down = pow(  (mfreq[1][0])/ (coupling_strength_to_mode0[0] + coupling_strength_to_mode0[1])
-                                                   + 2 * coupling_strength_to_mode0[0] / (mfreq[0][1]) , 2 ) / 4 ;
-
-    double Crossing_point_quanta_spin_up =
-            pow(  (mfreq[1][0])/ (coupling_strength_to_mode0[0] + coupling_strength_to_mode0[1])
-                  - 2 * coupling_strength_to_mode0[1] / (mfreq[0][1]) , 2 ) / 4  ;
-```
-
-eq.(47):
-
-$m=\left[\frac{\epsilon}{4 \lambda}+\frac{\lambda}{\hbar \omega_{0}}\right]^{2}, \quad n=\left[\frac{\epsilon}{4 \lambda}-\frac{\lambda}{\hbar \omega_{0}}\right]^{2}$
-
-**About frequency of first mode:**
-
-mfreq[0][0] == mfreq[1][0] :  $\epsilon$  which is energy difference between electronic state.
-
-```cpp
- double Crossing_point_quanta_spin_down = pow(  (mfreq[1][0])/ (coupling_strength_to_mode0[0] + coupling_strength_to_mode0[1])
-                                                   + 2 * coupling_strength_to_mode0[0] / (mfreq[0][1]) , 2 ) / 4 ;
-```
-
-This equivalent to :
-
-$ m = \frac{1}{4} [\frac{\epsilon}{\lambda_{1} + \lambda_{2} } + \frac{2 \lambda_{1}}{\hbar \omega_{0}}]^{2}$
-
-Here :
-
- **coupling_strength_to_mode0[0] $\equiv \lambda_{1}$**    coupling strength of vib mode 0 to electronic state. for ground electronic state 
-
-                              
-
-  **coupling_strength_to_mode0[1]  $\equiv \lambda_{2}$**  oupling strength of vib mode 0 to electronic state. for excited electronic state 
-
-```cpp
-double Crossing_point_quanta_spin_up =
-            pow(  (mfreq[1][0])/ (coupling_strength_to_mode0[0] + coupling_strength_to_mode0[1])
-                  - 2 * coupling_strength_to_mode0[1] / (mfreq[0][1]) , 2 ) / 4  ;
-```
-
-This is equivalent to :
-
-$n = \frac{1}{4} (\frac{\epsilon}{\lambda_{1} + \lambda_{2}} - \frac{2 \lambda_{2} }{\hbar \omega_{0} })^{2}$
-
-( Here we assume $\lambda_{1}$ , $\lambda_{2}$ could be different  )
-
- **mfreq[1][0]** $\equiv \epsilon $  : vibrational ground state energy of excited electronic state
-
- **mfreq[0][1] = mfreq[1][1]** = $\omega_{0}$
-
-```cpp
-          crossing_region_state[0][0] = 0;
-        crossing_region_state[0][1] = lround(Crossing_point_quanta_spin_down );
-
-        crossing_region_state[1][0] = 1;
-        crossing_region_state[1][1] = lround (Crossing_point_quanta_spin_up );Set initial state of system : 
-```
-
-- initial_vibrational_state[0]   : $|0 , m ,\cdots \rangle$ .  here 0 stands it is in ground electronic state.
-
-$m$ stands its q.n. (quantum number) in first vibrational mode is == $m$  (see eq.(47) in Logan note and note above. )
-
-- initial_vibrational_state[1] :  $|1  , n ,\cdots \rangle$ , here 1 stands for it is in excited electronic state. 
-
-$n$ stands its q.n. in first vibrational mode is == n . (see eq.(47 ) in Logan's note).
-
-#### 3. construct_Hamiltonian_basis_set( )
-
-```cpp
-void full_system:: construct_Hamiltonian_basis_set( ){
-    // use this function we construct monomer state in a cube.
+void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
     if(my_id==0){
         int i, j, k;
-        int i1;
-        double  energy;
+        int i1, i2;
+        double  detector0_energy, detector1_energy;
+        // monomer0_qn and monomer1_qn indicate current monomer mode index we are calculating energy.
+        vector<int> monomer0_qn(d.nmodes[0]);
+        vector <int> monomer1_qn(d.nmodes[1]);
 
-        double energy_for_vibrational_state;
-        // ndetector0 and ndetector1 indicate current monomer mode quantum number (0001001 for example)  we are considering.
-        vector<int> ndetector0(d.nmodes[0]);
-
+        // record size of total matrix
         int location;
         bool exist=false;
 
-        int state_one_norm_distance;
-
+        int state_space_distance;
 ......
 ```
 
-**Energy shift :**
 
-```cpp
-        // ground_electronic_state_initial_energy_shift : energy shift for ground state
-        double ground_electronic_state_initial_energy_shift = 0 ;
-
-        // excited_electronic_state_initial_energy_shift : energy shift for excited state.
-        // this energy shift is due to different coupling strength in different electronic state. See eq.(22 b ) in Logan's note.
-        double excited_electronic_state_initial_energy_shift = pow(coupling_strength_to_mode0[0],2) / d.mfreq[0][1] - pow(coupling_strength_to_mode0[1] , 2) / d.mfreq[0][1] ;
-```
-
-$\begin{aligned}
-H_{0} &=\sum_{\sigma}|\sigma\rangle\langle\sigma|\left(\frac{\sigma}{2} \epsilon+\sigma \lambda_{\sigma}\left(b_{0}^{\dagger}+b_{0}\right)+\hbar \omega_{0 \sigma} b_{0}^{\dagger} b_{0}\right) \quad \equiv \sum_{\sigma} H_{0 \sigma} \\
-&=\sum_{\sigma}|\sigma\rangle\langle\sigma|\left(\frac{\sigma}{2} \epsilon-\frac{\lambda_{\sigma}^{2}}{\hbar \omega_{0 \sigma}}+\hbar \omega_{0 \sigma} \tilde{b}_{0 \sigma}^{\dagger} \tilde{b}_{0 \sigma}\right)
-\end{aligned}$
-
-pow(coupling_strength_to_mode0[1] , 2) / d.mfreq[0][1]  : $\lambda_{1}^{2} / \omega_{0}$
-
-pow(coupling_strength_to_mode0[0],2) / d.mfreq[0][1] : $\lambda_{0}^{2} / \omega_{0}$
-
-Thus excited_electronic_state_initial_energy_shift = $-\lambda_{1}^{2}/\hbar \omega_{0} - (- \lambda_{0}^{2} / \hbar \omega_{0})$
-
-**This is change of ground state energy due to shift** $b$ to $\tilde{b}$
-
-**crossing region energy:**
-
-```cpp
-        double crossing_region_energy = d.mfreq[0][1]/2 *
-                pow( d.mfreq[0][0] /(sqrt(2) *(coupling_strength_to_mode0[0] + coupling_strength_to_mode0[1]) ) +
-                sqrt(2) * coupling_strength_to_mode0[0] / d.mfreq[0][1] , 2);
-```
-
-This is just $E = m \hbar \omega_{0} = n\hbar \omega_{0} + \epsilon$
 
 #### Construct basis set for Hamiltonian:
 
 ```cpp
-while (1) {
+
+ monomer0_qn[0] = -1; // this is for:  when we go into code: monomer0_qn[i]= monomer0_qn[i]+1, our first state is |000000>
+ while (1) {
             label2:;  // label2 is for detector0 to jump to beginning of while(1) loop (this is inner layer of while(1))
 
-            // ground electronic state
-            ndetector0[0] = 0;
-            // i1 begin from 1, this is because mode 0 is index to denote electronic state.
-            // code below will let us go through all states (000000) - > (100000) -> (nmax0, nmax1, .... , nmax_n) with constraint (energy constrain + distance cutoff constraint) we add to sift states to use
-            for (i1 = 1; i1 < d.nmodes[0]; i1++) {  // loop through detector0
-                // define the way we loop through vibrational quantum numbe   (000000) - > (nmax0, nmax1, .... , nmax_n):
-                ndetector0[i1] = ndetector0[i1] + 1;
-                if (ndetector0[i1] <= d.nmax[0][i1]) break;
-                if (ndetector0[d.nmodes[0] - 1] > d.nmax[0][d.nmodes[0] - 1]) {
-                    ndetector0[d.nmodes[0] - 1] = 0;
+             for (i1 = 0; i1 < d.nmodes[0]; i1++) {  // loop through detector0
+                // define the way we loop through detector0:
+                monomer0_qn[i1] = monomer0_qn[i1] + 1;
+                if (monomer0_qn[i1] <= d.nmax[0][i1]) break;
+                if (monomer0_qn[d.nmodes[0] - 1] > d.nmax[0][d.nmodes[0] - 1]) {
+                    monomer0_qn[d.nmodes[0] - 1] = 0;
                     goto label1;  // use goto to jump out of nested loop
                 }
-                ndetector0[i1] = 0;
-.......
-            }
+                monomer0_qn[i1] = 0;
+               }
+
+ }
+           
 ```
 
-This code  goes through all vibrational state at ground electronic state:
+This code  goes through all vibrational state at electronic state 0:
 
-$|0 , \cdots \rangle $, covering all state whose quantum number < $n_{max}$ . We first increment index 1 , then index 2 , then index 3.
+$| n_{1}, n_{2}, \cdots \rangle $, covering all state whose quantum number < $n_{max}$ . We first increment index 1 , then index 2 , then index 3.
 
-$|0,0,0, \cdots \rangle  \rightarrow |0,1,0,\cdots \rangle \rightarrow \cdots \rightarrow  |0, n_{max} , 0, \cdots \rangle \rightarrow |0,0,1,\cdots\rangle \rightarrow  \cdots \rightarrow |0,n_{max},1,\cdots\rangle $
+$|0,0, \cdots \rangle  \rightarrow |1,0,\cdots \rangle \rightarrow \cdots \rightarrow  | n_{max} , 0, \cdots \rangle \rightarrow |0,1,\cdots\rangle \rightarrow  \cdots \rightarrow |n_{max},1,\cdots\rangle $
 
 ```cpp
-            energy = 0;
-            energy_for_vibrational_state = 0;
-            // calculate monomer 1 energy
-            for (i = 0; i < d.nmodes[1]; i++) {
-                energy = energy + ndetector0[i] * d.mfreq[1][i];
+     // calculate monomer 0 energy
+     for (i = 0; i < d.nmodes[0]; i++) {
+        if (self_anharmonicity_bool){
+            // add self-anharmonicity
+             monomer0_energy = monomer0_energy + d.mfreq[0][i] * (monomer0_qn[i] - pow(monomer0_qn[i], 2) * d.mfreq[0][i] / (4 * self_anharmonicity_D) );
             }
-            for( i = 1; i< d.nmodes[1]; i++){
-                energy_for_vibrational_state = energy_for_vibrational_state + ndetector0[i] * d.mfreq[1][i];
-            }
+        else{
+             monomer0_energy = monomer0_energy + d.mfreq[0][i] * monomer0_qn[i] ;
+        }
+     }
+
+
 ```
 
-**energy** : this is energy for vibrational state + **ground state energy of electronic state**
-
-**energy_for_vibrational_state** : this is energy for vibrational state.
+compute monomer 0 vibrational state energy.
 
 ```cpp
             //--------------------------------------------------------------------------------------------
-            // criteria below make sure monomer 0 's energy is reasonable.
-            // d.initial_vibrational_energy[0] only include vibrational energy of electronic state.
-            if ( energy_for_vibrational_state > d.initial_vibrational_energy[1] + d.vibrational_energy_window_size) {
+           // criteria below make sure monomer 0 's energy is reasonable.
+            if (monomer0_energy > d.initial_state_energy[0] + d.vibrational_energy_window_size) {
                 // monomer 0's energy can not be larger than its initial energy + photon energy
                 // jump to next monomer state.
-
-                // start with first vibrational mode
-                k = 1;
-                while (ndetector0[k] == 0) {
-                    ndetector0[k] = d.nmax[0][k];
+                k = 0;
+                while (monomer0_qn[k] == 0) {
+                    monomer0_qn[k] = d.nmax[0][k];
                     k++;
                     if (k >= d.nmodes[0]) {
                         break;
                     }
                 }
                 if (k < d.nmodes[0]) {
-                    ndetector0[k] = d.nmax[0][k];
+                    monomer0_qn[k] = d.nmax[0][k];
                 }
-                goto label4;
+                goto label2;
             }
 ```
 
@@ -330,24 +206,17 @@ Because of the sequence we choose to go through state in state space, once energ
 $|1,2,3,0,1 , \cdots \rangle \rightarrow |0,0,0,1,1,\cdots \rangle  $ 
 
 ```cpp
-            // criteria below make sure monomer 1 can not be too far away from bright state and lower bright state.
-            // this distance only apply to vibrational state space.
-            state_one_norm_distance = state_distance(ndetector0, d.initial_vibrational_state[1], d.nmodes[1]);
-            if ( state_one_norm_distance > Rmax) {
-                goto label4;
+            // criteria below make sure monomer 0 can not be too far away from bright state and lower bright state.
+       state_space_distance =
+                    compute_state_space_distance(monomer0_qn, d.initial_vibrational_state[0], d.nmodes[0]);
+
+            // we use distance constraint for state whose energy is between two
+            if (state_space_distance > Rmax) {
+                goto label2;
             }
 ```
 
 We require quantum state we incorporate satisfy $| n - n_{init} | < R_{max} $
-
-```cpp
-location=find_position_for_insert_binary(monomer_qn_list0, ndetector0, exist);  // we check if this mode exist and the location we have to insert this state at the same time.
-            if (!exist) {
-                // when we push back we should consider arrange them in order. We compute location to insert in find_position_for_insert_binary() function:
-                monomer_qn_list0.insert(monomer_qn_list0.begin() + location, ndetector0);
-                dmat0.insert(dmat0.begin() + location, energy);
-            }
-```
 
 To facilitate future reference of state, we also order state according to their quantum number. 
 
@@ -355,11 +224,10 @@ To facilitate future reference of state, we also order state according to their 
 
 #### 
 
-#### 4. construct_Hamiltonian_matrix()
+#### 4. construct_monomer__Hamiltonian_matrix()
 
 ```cpp
-void monomer:: construct_Hamiltonian_matrix(ifstream & input, ofstream & output, ofstream & log,  vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & monomer_qn_list0, vector<vector<int>> & monomer_qn_list1) {
-    int m;
+void monomer:: construct_monomer_Hamiltonian_MPI(ifstream & input, ofstream & output, ofstream & log, vector<double> & dmat_diagonal_global0, vector<double> & dmat_diagonal_global1, vector<vector<int>> & vmode0, vector<vector<int>> & vmode1) {
 
     // previously information for state space is in process 0. Now we broadcast this information to all procerss.
     construct_dv_dirow_dicol_dmatrix_MPI(log, dmat0, dmat1, monomer_qn_list0, monomer_qn_list1);
@@ -373,13 +241,284 @@ void monomer:: construct_Hamiltonian_matrix(ifstream & input, ofstream & output,
 
 ##### 4.1 compute_initial_vibrational_state_index()
 
-We know in some cases, the initial state we choose in program may be important for evaluating some quantity, thus we compute state index in state list according to q.n. of initial state.
+We know in some cases, the initial state we choose in program may be important for evaluating some quantity, for example, here we need to compute the survival probability from the initial vibrational states. Therefore, we compute state index in state list according to q.n. of initial state.
 
-##### 4.2 compute off diagonal matrix of Hamiltonian
+##### 4.2 compute off diagonal matrix of monomer__Hamiltonian
 
 ```cpp
 void monomer::compute_monomer_offdiag_part_MPI(ofstream & log,vector<double> & dmat0,  vector<double> & dmat1,  vector<vector<int>> & monomer_qn_list0, vector<vector<int>> & monomer_qn_list1)
 ```
+
+The Hamiltonian we compute is the local random matrix Hamiltonian:
+
+$$
+\hat{H}_{\mathrm{a}}=\sum_m \prod_\alpha V_m\left(b_\alpha^{\dagger}\right)^{m_\alpha^{+}} b_\alpha^{m_\alpha^{-}} .
+\\
+V_{m} = V_{3} a^{m-3}
+
+
+$$
+
+Here $V_{m}$ is the strength of anharmonic coupling of $m^{th}$ order. $a$ is the scaling factor.
+
+In the code, aij[m][k] is the scaling factor for monomer m , mode k. 
+
+
+
+```cpp
+```
+ if (ntot % 2 == 0) {
+                        value = V_intra;  // anharmonic coupling V0. V3 = V0 * a^3. (a is anharmonic scaling factor)
+                    } else {
+                        value = -V_intra;
+                    }
+                    for (k = 0; k < nmodes[m]; k++) {
+                        value = value * pow(aij[m][k]* nbar[k], deln[k]);
+                    }
+```
+```
+
+Here ntot = $\sum_{i} \Delta n_{i}$ . 1-norm distance between two vibrational states.
+
+nbar[i] : = $(n_{a,i} n_{b,i})^{1/4}$ , here this is square of geometric mean of quantum number in mode i for state a and state b (we are computing anharmonic coupling between state a and state b)
+
+
+
+deln[i]: $\Delta n_{i}$ .  quantum number difference between two states along mode i.
+
+$V_{m} = V_{0} \prod_{i} (a_{i} \sqrt{ (n_{a,i} n_{b,i})^{1/2} })^{\Delta n_{i}}$
+
+Here $V_{0} = 300$ , $a_{i} = \sqrt{f_{i}} / 270$
+
+For the choice of this value, see Bigwood et al PNAS paper : [The vibrational energy flow transition in organic molecules: Theory meets experiment | PNAS](https://www.pnas.org/doi/full/10.1073/pnas.95.11.5960)
+
+
+
+### 5. construct dimer Hamiltonian matrix
+
+```cpp
+void full_system::construct_dimer_Hamiltonian_matrix_with_energy_window_MPI() {
+    int i;
+
+    // compute diagonal part of dimer Hamiltonian.
+    compute_sstate_dstate_diagpart_dirow_dicol_MPI();
+
+    // sort (exciton_state, vib_mode1, vib_mode2) into groups representing states with the same (exciton_state, vib_mode1) or (exciton_state, vib_mode2).
+    construct_quotient_state_all_MPI();
+
+    compute_full_Hamiltonian_offdiagonal_part_MPI();
+}
+```
+
+This function construct the Hamiltonian for dimer (here we refer as full system). 
+
+
+
+#### 5.1 construct dimer states
+
+```cpp
+// compute diagonal part of dimer Hamiltonian.
+    compute_sstate_dstate_diagpart_dirow_dicol_MPI();
+```
+
+* compute exciton state energy as diagonal part of dimer Hamiltonian matrix.
+
+Notice here by our definition, irow, icol should be global matrix index across different process. Therefore, you will see the code in this function add offset to irow, icol value later.
+
+```cpp
+                energy = s.exciton_state_energy[i] + monomer1_vib_state_energy_all_pc[j] + monomer2_vib_state_energy_all_pc[k]; // energy of electronic state (s.tlmat[i]) + energy in two monomer(d.monomer1_vib_state_energy_all_pc[j] + d.monomer2_vib_state_energy_all_pc[k]).
+ 
+                mat.push_back(energy);  // diagonal part is energy of vibrational state
+                irow.push_back(mat_index); //mat_index is local, we have to re-compute it after all process compute its own irow, icol. See code below
+                icol.push_back(mat_index);
+```
+
+* record exciton state for given dimer state in exciton_state_index_list
+
+* record vibrational state index for dimer 0 and dimer 1 
+
+```cpp
+                exciton_state_index_list.push_back(i);
+                vibrational_state_index_list[0].push_back(j); // vibrational_state_index_list record monomer index across process (global index , not index in each process)
+                vibrational_state_index_list[1].push_back(k);
+```
+
+#### 5.2 construct quotient state
+
+See quotient.h for how we define quotient state in this program:
+
+```cpp
+struct quotient_state {   // monomer quotient_space_state.
+
+    // each quotient_state is defined for pair (exciton_state_index_list, vmode), here vmode is vibrational mode in another monomer
+    // exciton_state_index_list is exciton state ( 0 or 1).
+    // states (exciton_state_index_list, vmode1, vmode2) is grouped into different group according to (exciton_state_index_list, vmode2) for monomer1_quotient_state_list and (exciton_state_index_list, vmode1) for monomer2_quotient_state_list
+    // monomer1_quotient_state_list is used when we construct anharmonic coupling in monomer1, states are grouped according to (exciton_state_index_list, vmode2)
+    // monomer2_quotient_state_list is used when we construct anharmonic coupling in monomer2, states are grouped according to (exciton_state_index_list, vmode1)
+
+    // Take monomer1_quotient_state_list for example:
+    int exciton_state;  // exciton state. denote different potential energy surface
+    vector<int> vmode;  // vibrational mode of monomer2
+
+
+    vector <int> full_hamiltonian_state_index_list;  // list of state index in exciton_state_index_list + monomer vib state wave function that is defined with (exciton_state_index_list, vmode1, vmode2),
+                                                // which is grouped according to (exciton_state_index_list, vmode2)
+
+    vector <int> monomer_state_index_list; // sorted list. records index in monomer1 reduced density matrix basis. (monomer states with vibrational quantum number vmode1)
+
+
+    // anharmonic_coupling_info_index records anharmonic coupling for vib states in monomer 1.
+    // list of tuple (i,j,k,l,m):
+    // i : vib state in monomer1, j : vib state in monomer1.  i,j monoer state coupled with each other anharmonically.
+    // k: state index in full_matrix, l: state index in full matrix.
+    // m : index in monomer Hamiltonian for local anharmonic coupling
+    vector<vector<int>> anharmonic_coupling_info_index_list;
+
+    vector<double> anharmonic_coupling_value_list;
+
+    // initialize quotient state. defined with vibrational states in another monomer and exciton states
+    quotient_state(vector<int>  & vmode1, int exciton_state1){
+        exciton_state = exciton_state1;
+        vmode = vmode1;
+    }
+};
+
+```
+
+In summary, for dimer, when constructing anharmonic coupling within  monomer 1, the coupling is between states that have same vibrational states in monomer 2 and the same exciton state.  
+
+
+
+Therefore, we group all dimer states with the same vibrational states of monomer 2 and the exciton state into monomer1_quotient_state_list. 
+
+
+
+We group all dimer states with the same vibrational states of monomer 1 and the exciton state into monomer2_quotient_state_list. 
+
+
+
+We create a strcuture : 
+
+```cpp
+struct quotient_state
+
+```
+
+which is defined by exciton state and vibrational state of another monomer (monomer2). 
+
+Then each quotient state will have list: 
+
+* full_hamiltonian_state_index_list 
+
+* monomer_state_index_list
+
+which will record index of vibrational states of this monomer (monomer 1) and index of dimer states in full_hamiltonian basis set.
+
+
+
+We also have the list attached to each quotient state represent anharmonic coupling in this monomer (monomer 1):
+
+* anharmonic_coupling_info_index_list
+
+* anharmonic_coupling_value_list
+
+
+
+anharmonic_coupling_info_index_list : (i,j,k,l,m) records index of vibrational state in monomer 1 (i,j) and index in full matrix (k,l). m is index for anharmonic coupling in monomer hamiltonian.
+
+ 
+
+The function below constructs anharmonic_coupling_info_index_list for each monomer.
+
+```cpp
+    // construct MPI version of q_index is easy to do. just let every process search the index in their local dlist.
+    // anharmonic_coupling_info_index is monomer Hamiltonian's element relation to location in full matrix.
+    construct_anharmonic_coupling_info_index_list_MPI();
+```
+
+
+
+#### 5.3 construct full Hamiltonian off diagonal part:
+
+construct off-diagonal coupling for dimer states in full Hamiltonian basis set.
+
+```cpp
+void full_system::compute_full_Hamiltonian_offdiagonal_part_MPI(){
+    int i;
+    int anharmonic_coupling_num, anharmonic_coupling_num_sum;
+    int nonadiabatic_off_num, nonadiabatic_off_num_sum;
+
+    // off-diagonal elements in Hamiltonian, due to anharmonic coupling between states in the same monomer
+    vector<double> anharmonic_coupling_mat;
+    vector<int> anharmonic_coupling_irow;
+    vector<int> anharmonic_coupling_icol;
+    compute_monomer_anharmonic_coupling_in_full_matrix_MPI(anharmonic_coupling_mat, anharmonic_coupling_irow,
+                                                           anharmonic_coupling_icol);
+
+    // off-diagonal elements in Hamiltonian, due to nonadiabatic coupling between states in different exciton states (potential energy surface)
+    vector<double> nonadiabatic_off_mat;
+    vector<int> nonadiabatic_off_irow;
+    vector<int> nonadiabatic_off_icol;
+    compute_nonadiabatic_offdiagonal_matrix_full_system(nonadiabatic_off_mat, nonadiabatic_off_irow, nonadiabatic_off_icol);
+
+    //we have to rearrange off-diagonal_matrix in full_system to make sure irow is in  corresponding process.
+    //Also we have to compute offnum, matnum
+    combine_offdiagonal_term(anharmonic_coupling_mat, anharmonic_coupling_irow, anharmonic_coupling_icol,
+                             nonadiabatic_off_mat, nonadiabatic_off_irow, nonadiabatic_off_icol);
+
+
+
+}
+
+```
+
+There are two type of  coupling between vibrational states in such system:
+
+* anharmonic coupling in the monomer
+
+* nonadiabatic coupling between states in different exciton state
+
+
+
+They are computed by different function:
+
+* compute_monomer_anharmonic_coupling_in_full_matrix_MPI
+
+* compute_nonadiabatic_offdiagonal_matrix_full_system
+
+
+
+Then anharmonic terms are combined together: combine_offdiagonal_term
+
+
+
+FInal results recorded in mat, irow, icol matrix.
+
+
+
+Details of computing anharmonic coupling in each monomer and nonadiabatic coupling between states in different exciton states are given below:
+
+
+
+##### 5.3.1 anharmonic coupling in full matrix
+
+The anharmonic coupling between dimer states is due to anharmonic coupling within each monomer. It is computed using the quotient_state structure we have defined in section 5.2. 
+
+The (anharmonic_coupling_info_index_list) and (anharmonic_coupling_value_list) record coupling strength and info of dimer vibratonal states to facilitate constructing anharmonic couplings in dimer basis set.
+
+
+
+##### 5.3.2 compute nonadiabatic coupling between two surfaces
+
+We first compute the table of franck condon factor for vibrational modes in each monomer. Because in our model, the monomer is symmetric, therefore, the results are the same for two monomers in our model.
+
+
+
+The Franck Condon factor $\langle m| \alpha ;n \rangle$ is decided by Huang-Rhys factor $S_{i}$ involved in exciton transfer. The displacement factor along each mode $\alpha_i$ is given by $\alpha_{i} = \sqrt{S_{i}}$ . See Appendix A of PNAS paper:  C. Zhang, M. Gruebele, D. E. Logan, and P. G. Wolynes, Surface Crossing and Energy Flow in Many-Dimensional Quantum Systems, Proc. Natl. Acad. Sci. U.S.A. 120, e2221690120 (2023)
+
+for detailed information.
+
+  
 
 **Coupling between state in different vibrational state**
 
@@ -392,14 +531,13 @@ $\begin{aligned}
 
 Here to compute coupling between vibrational state in different electronic state we have to consider overlap of two vibrational state : 
 
-$t_{\left(\alpha_{\downarrow} m, \alpha_{\uparrow} n\right)}=t<\alpha_{\downarrow} m \mid \alpha_{\uparrow} n>$
+$t_{m, \alpha n}=t \langle  m \mid \alpha n\rangle = $
 
 $\begin{array}{r}
-<\alpha_{\downarrow} m\left|\alpha_{\uparrow} n>=e^{-\frac{1}{2}\left(\alpha_{\downarrow}^{2}+\alpha_{\uparrow}^{2}\right)}<m\right| e^{-\alpha_{\downarrow} b^{\dagger}} e^{\alpha_{\downarrow} b} e^{\alpha_{\uparrow} b^{\dagger}} e^{-\alpha_{\uparrow} b} \mid n> \\
-\left.=\exp \left(-\Delta \alpha^{2} / 2\right)<m\left|\exp \left(-\Delta \alpha b^{\dagger}\right) \exp (\Delta \alpha b)\right| n>\right)
+\langle m\left|\alpha ; n \rangle =\exp \left(- \alpha^{2} / 2\right) \langle m\left|\exp \left(\alpha \hat{b}^{\dagger}\right) \exp (-\alpha \hat{b})\right| n \rangle \right)
 \end{array}$
 
-Here : $\Delta \alpha = \alpha _{\downarrow} - \alpha_{\uparrow}$
+
 
 Above derivation use Baker–Campbell–Hausdorff formula :
 
@@ -409,203 +547,40 @@ More specifically : $e^{\alpha_{\downarrow} b} e^{\alpha_{\uparrow} b^{\dagger}}
 
 $ e^{\alpha_{\uparrow} b^{\dagger}} e^{\alpha_{\downarrow} b}= e^{\alpha_{\downarrow}b + \alpha_{\uparrow}b^{\dagger}-\frac{1}{2} \alpha_{\downarrow} \alpha_{\uparrow}}$
 
-```cpp
-    double Alpha = (coupling_strength_to_mode0[0] + coupling_strength_to_mode0[1]) / (mfreq[0][1]);
-```
 
-Here $\alpha_{\downarrow} = \lambda_{1} / \hbar \omega_{0}$  , $\alpha_{\uparrow} = - \lambda_{2} / \hbar \omega_{0}$
 
-thus $\Delta \alpha = (\lambda_{1} + \lambda_{2} ) / (\hbar \omega_{0} )$
 
-We define $\Delta \alpha$ in code as    **Alpha** .
+The franck condon factor can be computed as following:
 
-```cpp
-           // Coupling within same electronic state.
-            if((*vmode_ptr)[i][0] == (*vmode_ptr)[j][0] ){
-                ntot=0;
-                // k begins with 1, because index 0 is to denote different electronic state.
-                for(k=1;k<nmodes[0];k++){
-                    deln[k]= abs( (*vmode_ptr)[i][k] - (*vmode_ptr)[j][k] ); //  deln[k] = abs(monomer_vibrational_states_quantum_number_list[m][i][k] - monomer_vibrational_states_quantum_number_list[m][j][k]);
-                    nbar[k]= sqrt(sqrt(double(max(1, (*vmode_ptr)[i][k])) * double(max(1, (*vmode_ptr)[j][k]  ))  )); // sqrt( vi[k] * vj[k] ).  This account for coefficient \sqrt{n + 1} generated by a^{+}|n> etc.
-                    ntot= ntot+ deln[k];
-                }
-                // this is because we don't have q1 or q1 * q2 in Harmonic oscillator's Hamiltonian
-                if (ntot == 2) {
-                    for (k = 1; k < nmodes[0]; k++) {
-                        if (deln[k] == 2) deln[k] = 4;
-                        if (deln[k] == 1) deln[k] = 2;
-                    }
-                } else if (ntot == 1) {
-                    for (k = 1; k < nmodes[0]; k++) {
-                        if (deln[k] == 1) deln[k] = 3;
-                    }
-                } else if (ntot == 0) {
-                    log << "Error! The off-diagonal element must differ in q.n." << endl;
-                    MPI_Abort(MPI_COMM_WORLD,-8);
-                }
-                // check ntot with maxdis in quantum number space:
-                // maxdis: 1-norm distance cutoff in state space for coupling between states.
-                if (ntot < maxdis) {
+$$
+\begin{array}{l}
+\left\langle m\left|\exp \left(\alpha \hat{b}^{\dagger}\right) \exp (-\alpha \hat{b})\right| n\right\rangle= \\
+\left\langle m\left|\left(1 + \alpha \hat{b}^{\dagger}+\frac{(\alpha)^2\left(\hat{b}^{\dagger}\right)}{2 !}+\cdots\right)(1 - \alpha \hat{b}+\cdots)\right| n\right\rangle \\
+=\sum_k \frac{(\alpha)^{m-k}}{(m-k) !}\left[\langle m|\left(\hat{b}^{\dagger}\right)^{m-k}\right] \times \frac{(- \alpha)^{n-k}}{(n-k) !}\left(\hat{b}^{n-k}|n\rangle\right) \\
+=\sum_k \frac{(\alpha)^{m-k}}{(m-k) !}\left[\langle k| \frac{\sqrt{m !}}{\sqrt{k !}}\right] \times \frac{(-\alpha)^{n-k}}{(n-k) !}\left(\sqrt{\frac{n !}{k !}}|k\rangle\right)= \\
+\sum_{k=0}^{\min (m, n)}(\alpha)^{m+n-2 k} \frac{(-1)^{n-k}}{(m-k) !(n-k) !} \frac{\sqrt{m ! n !}}{k !}
+\end{array}
+$$
 
-                    if (ntot % 2 == 0) {
-                        value = V_intra;  // V=0.03 as requirement.
-                    } else {
-                        value = -V_intra;
-                    }
-
-                    for (k = 1 ; k < nmodes[0]; k++) {
-                        // aij is scaling factor for mode k.
-                        value = value * pow(aij[0][k]* nbar[k], deln[k]);
-                    }
-                    // lij == V / (\Delta E) . Here V is anharmonic coupling between states, \Delta E is energy difference between states. Recall time-independent perturbation in QM.
-                    // only when lij > cutoff, this anharmonic coupling will be important for dynamics.
-                    if ( (*dmat_ptr)[i] != (*dmat_ptr)[j] ) {
-                        lij = abs(value / ((*dmat_ptr)[i] - (*dmat_ptr)[j]));
-                        if (lij > cutoff) {
-                            monomer_mat[0].push_back(value);
-                            monomer_irow[0].push_back(i);
-                            monomer_icol[0].push_back(j);
-                        }
-                    } else {
-                        monomer_mat[0].push_back(value);
-                        monomer_irow[0].push_back(i);
-                        monomer_icol[0].push_back(j);
-                    }
-                }
-            }
-```
-
-Code for constructing off-diagonal matrix for coupling within same electronic state : 
-
-This is just anharmonic vibrational coupling :
-
-$V^{(\Delta n)}=(-1)^{\Delta n} V_{0} \times \prod_{i}\left(\left(\omega_{i} / \Omega\right)^{1 / 2} \times a\right)^{\Delta n_{i}}$
-
-Or in Logan's note, that is eq.(15b , 15c):
-
-$\begin{aligned}
-&H_{0}=\sum_{\sigma}|\sigma\rangle\langle\sigma|\left(\frac{\sigma}{2} \epsilon-\frac{\lambda_{\sigma}^{2}}{\hbar \omega_{0 \sigma}}+\hbar \omega_{0 \sigma} \tilde{b}_{0 \sigma}^{\dagger} \tilde{b}_{0 \sigma}+\sum_{\alpha} \epsilon\left(\hat{n}_{\alpha}\right)\right) \quad \equiv \sum_{\sigma} H_{0 \sigma} \\
-&H_{\phi}=\sum_{\sigma}|\sigma\rangle\langle\sigma|\left(\frac{1}{2} \sum_{\beta, \gamma}^{\prime} \phi_{0 \beta \gamma}\left(\tilde{b}_{0 \sigma}^{\dagger}+\tilde{b}_{0 \sigma}\right)\left(b_{\beta}^{\dagger}+b_{\beta}\right)\left(b_{\gamma}^{\dagger}+b_{\gamma}\right)+H_{\phi L W}\right) \quad \equiv \sum_{\sigma} H_{\phi \sigma}
-\end{aligned}$
-
-Code for coupling between electronic state : 
+In the code, this is programmed as :
 
 ```cpp
-            // Coupling between states with different electronic state.
-            // Code below is for coupling between vibrational states with different electronic state.
-            if( (*vmode_ptr)[i][0] != (*vmode_ptr)[j][0] ){
-                // Check other vibrational state except vibrational mode with index: 1 is the same
-                // as we mentioned before : all vib state except vib mode 0 (index1) should be equal to each other
-                Other_vibrational_state_same = true ;
-                for( k = 2 ; k <nmodes[0]; k ++  ) {
-                    if ((*vmode_ptr)[i][k] != (*vmode_ptr)[j][k]) {
-                        Other_vibrational_state_same = false;
-                        break;
-                    }
-                }
-                if( not Other_vibrational_state_same){
-                    continue;
-                }
+double franck_condon_factor = 0;
+    // prefactor = e^{-alpha^2/2} sqrt(n! m!) * alpha^{n+m}
+    // std::tgamma(n+1) = n!
+    double prefactor = exp(- pow(alpha,2)/2) * pow(alpha, n + m) * sqrt(std::tgamma(n+1)  * std::tgamma(m+1) );
 
+    if (alpha!=0){
+        for (l=0;l<=nm_min;l++){
+            // sum: 1/(l! * (n-l)! * (m-l)!) * (-1)^{n-l} * alpha^{-2l}
+            franck_condon_factor = franck_condon_factor + 1/( std::tgamma(l+1) * std::tgamma(n-l+1) * std::tgamma(m-l+1) ) * pow(-1, n-l) * pow(alpha, -2*l);
+        }
 
-                // include valid coupling
-                // below we compute <spin_down, mode_1_index (m_index) | spin_up, mode_1_index (n_index) >
-                // for <spin_up,  m_index , spin_down, n_index > == < spin_down, n_index | spin_up, m_index>
-                if((*vmode_ptr)[i][0] == 0 and (*vmode_ptr)[j][0] == 1){
-                    //  <spin_down | spin_up> case
-                    m_index = (*vmode_ptr)[i][1];
-                    n_index = (*vmode_ptr)[j][1];
-                }
-                else{
-                    // <spin_up | spin_down> case:
-                    m_index = (*vmode_ptr)[j][1];
-                    n_index = (*vmode_ptr)[i][1];
-                }
-                // below compute <spin_down, m_index | spin_up, n_index >
-                Minimum_Mode_1_index = min(  m_index , n_index ) ;
-                tunneling_matrix_element = 0;
-
-                for(k=0; k<= Minimum_Mode_1_index; k++){
-                    // (-1)^{m_index - k}/ [(m_index - k)! * (n_index-k)! ] * sqrt(m! * n!) / (k!)
-                    factorial_coefficient = 1 / (factorial( m_index - k ) * factorial(n_index - k) ) *
-                            pow(-1 , m_index - k) * sqrt(factorial(m_index) * factorial(n_index) )/ (factorial(k));
-
-                    tunneling_matrix_element = tunneling_matrix_element + pow(Alpha, m_index + n_index - 2 * k) *
-                            factorial_coefficient;
-                }
-                // Coupling_between_electronic_state : t in Logan's note.
-                tunneling_matrix_element = tunneling_matrix_element * exp(- pow(Alpha,2) / 2 ) * Coupling_between_electronic_state;
-
-                if( i == initial_state_index[0] and j== initial_state_index[1]){
-                    cout << "Found " << endl;
-                }
-
-                // cutoff criteria. This equivalent to strong coupling is among states in two electronic state which have similar energy. (near crossing region)
-
-
-                if ( (*dmat_ptr)[i] != (*dmat_ptr)[j] ) {
-                    lij = abs(tunneling_matrix_element / ((*dmat_ptr)[i] - (*dmat_ptr)[j]));
-                    if (lij > cutoff_for_coupling_between_electronic_state) {
-                        monomer_mat[0].push_back( tunneling_matrix_element );
-                        monomer_irow[0].push_back(i);
-                        monomer_icol[0].push_back(j);
-                    }
-                } else {
-                    monomer_mat[0].push_back( tunneling_matrix_element );
-                    monomer_irow[0].push_back(i);
-                    monomer_icol[0].push_back(j);
-                }
-
-            }
-```
-
-To compute : 
-
-$\begin{array}{r}
-<\alpha_{\downarrow} m\left|\alpha_{\uparrow} n>=e^{-\frac{1}{2}\left(\alpha_{\downarrow}^{2}+\alpha_{\uparrow}^{2}\right)}<m\right| e^{-\alpha_{\downarrow} b^{\dagger}} e^{\alpha_{\downarrow} b} e^{\alpha_{\uparrow} b^{\dagger}} e^{-\alpha_{\uparrow} b} \mid n> \\
-\left.=\exp \left(-\Delta \alpha^{2} / 2\right)<m\left|\exp \left(-\Delta \alpha b^{\dagger}\right) \exp (\Delta \alpha b)\right| n>\right)
-\end{array}$
-
-We use following code : 
-
-```cpp
-                // below compute <spin_down, m_index | spin_up, n_index >
-                Minimum_Mode_1_index = min(  m_index , n_index ) ;
-                tunneling_matrix_element = 0;
-
-                for(k=0; k<= Minimum_Mode_1_index; k++){
-                    // (-1)^{m_index - k}/ [(m_index - k)! * (n_index-k)! ] * sqrt(m! * n!) / (k!)
-                    factorial_coefficient = 1 / (factorial( m_index - k ) * factorial(n_index - k) ) *
-                            pow(-1 , m_index - k) * sqrt(factorial(m_index) * factorial(n_index) )/ (factorial(k));
-
-                    tunneling_matrix_element = tunneling_matrix_element + pow(Alpha, m_index + n_index - 2 * k) *
-                            factorial_coefficient;
-                }
-                // Coupling_between_electronic_state : t in Logan's note.
-                tunneling_matrix_element = tunneling_matrix_element * exp(- pow(Alpha,2) / 2 ) * Coupling_between_electronic_state;
-```
-
-**Explanation :** 
-
-$\langle m | \exp(-\Delta \alpha \hat{b}^{\dagger}) \exp(\Delta \alpha \hat{b} )|n\rangle  = \\ \langle m| (1 - \Delta \alpha \hat{b}^{\dagger} + \frac{(-\Delta\alpha)^{2} (\hat{b}^{\dagger})}{2!} + \cdots )  (1 + \Delta \alpha \hat{b} + \cdots ) |n\rangle  \\\ = \sum_{k} \frac{(- \Delta \alpha)^{m-k} }{(m-k)!} [\langle m| (\hat{b}^{\dagger})^{m-k}]  \times \frac{ (\Delta \alpha)^{n-k} }{(n-k)!} (\hat{b}^{n-k} |n \rangle ) \\ = \sum_{k} \frac{(- \Delta \alpha)^{m-k} }{(m-k)!} [\langle k| \frac{\sqrt{m!}}{\sqrt{k!}}  ] \times \frac{ (\Delta \alpha)^{n-k} }{(n-k)!} ( \sqrt{\frac{n!}{k!}} |k \rangle ) =\\ \sum_{k=0}^{min(m,n)} (\Delta \alpha)^{m+n-2k} \frac{(-1)^{m-k}}{(m-k)! (n-k)!} \frac{\sqrt{m! n!}}{k!}$ 
-
-We see this is exactly what code above compute.
-
-##### 4.3 construct sampling state index
-
-```cpp
-    if( not load_sampling_state ){
-        // construct sampling_state_index which contain states we want to compute IPR
-        // we divide all state to 20 categories according to energy, and sample 10 states in each cateogroty
-        construct_sampling_state_index(dmat0);
-    }
-    else{
-        // load sampling_state_index from file: sampling_state_info
-        load_sampling_state_index(log);
+        franck_condon_factor = franck_condon_factor * prefactor;
     }
 ```
 
-We choose state to do simulation.
+
 
 ### Evolve_full_sysem_MPI()
 
@@ -617,9 +592,13 @@ $i\hbar \frac{d \psi}{dt} = H \psi $
 
 #### 1. d.prepare_evolution():
 
-<img title="" src="file:///home/phyzch/CLionProjects/LW_code_clean_version/note%20fig/PNG%20image.png" alt="" width="596">
+![](/home/phyzch/CLionProjects/LW_code_dimer/note_fig/PNG%20image.png)
 
-![](/home/phyzch/CLionProjects/LW_code_clean_version/note%20fig/PNG%20image1.png)
+
+
+![](/home/phyzch/CLionProjects/LW_code_dimer/note_fig/PNG%20image1.png)
+
+
 
 We use MPI to speed up matrix array multiplication. 
 
@@ -649,36 +628,65 @@ This code analyze Hamiltonian H and find all the index for $m$ of  vector  $\psi
 #### 1.1 construct_receive_buffer_index()
 
 ```cpp
-vector <int> col_index_copy = monomer_icol[detector_index];  // column index in Hamiltonian has nonzero element.
-    sort(col_index_copy.begin(),col_index_copy.end()); // sort vector.
-    int col_array_size = col_index_copy.size();
-    int prev_col=-1;
+int full_system::construct_recvbuffer_index(){
+    int i,j,k;
+    int total_recv_count=0;
+    int local_begin= matsize_offset_each_process[my_id];
+    int local_end;
+    if(my_id!=num_proc-1){
+        local_end = matsize_offset_each_process[my_id+1];
+    }
+    else{
+        local_end= total_matsize;
+    }
+
+    // --------- Allocate space for vector to receive -----------------------
+    remoteVecCount = new int [num_proc];
+    remoteVecPtr= new int [num_proc];
+    remoteVecIndex = new int [offnum];
+    for(i=0;i<num_proc;i++){
+        remoteVecCount[i] = 0;
+    }
+    // ----------------------------------------------------------------
+
+
+    vector<int> icol_copy = icol;
+    sort(icol_copy.begin(),icol_copy.end());
     j=0;
-    for(i=0;i<col_array_size;i++){
-        if( (col_index_copy[i]>prev_col)   and ( (col_index_copy[i]<local_begin) or (col_index_copy[i] >= local_end) )  ){
-            // this matrix element is not in process.
-            if (col_index_copy[i] >= vsize * (num_proc-1) ){
-                remote_pc_id = num_proc-1;
+    int prev_col=-1;
+    int col_index;
+    int col_pc_id;
+    for(i=0;i<matnum;i++){
+        col_index= icol_copy[i];
+        if(col_index>prev_col and (col_index<local_begin or col_index >= local_end) ){
+            // find process id this icol belong to
+            for(k=1;k<num_proc;k++){
+                if(col_index < matsize_offset_each_process[k]){
+                    break;
+                }
             }
-            else{
-                remote_pc_id = col_index_copy[i] / vsize;
-            }
-            remoteVecCount_element[remote_pc_id] ++;
-            remoteVecIndex_element [j] = col_index_copy[i];  // vector index need to receive. (global index , ordered)
+            col_pc_id= k-1;
+            remoteVecCount[col_pc_id]++;
+            remoteVecIndex[j]= col_index;
             j++;
         }
-        prev_col= col_index_copy[i];
+        prev_col= col_index;
     }
-    remoteVecPtr_element[0]=0;   // displacement for remote vector from each process in remoteVecIndex.
+
+    remoteVecPtr[0]=0;
     for(i=1;i<num_proc;i++){
-        remoteVecPtr_element[i] = remoteVecPtr_element[i-1] + remoteVecCount_element[i-1];
+        remoteVecPtr[i]= remoteVecPtr[i-1] + remoteVecCount[i-1];
     }
+    total_recv_count=0;
     for(i=0;i<num_proc;i++){
-        total_remoteVecCount = total_remoteVecCount + remoteVecCount_element[i];
+        total_recv_count = total_recv_count + remoteVecCount[i];
     }
+    return total_recv_count;
+}
+
 ```
 
-Here **monomer_icol[detector_index]** is column index for nonzero element in Hamiltonian reside in given process.
+Here icol_copy is column index for nonzero element in Hamiltonian reside in given process.
 
 1 . We record index in  remoteVecIndex_element
 
@@ -697,17 +705,19 @@ use MPI_Alltoall and MPI_Alltoallv
 #### 1.3 Allocate space for element received from other process.
 
 ```cpp
-    for(m=0;m< sampling_state_list_size;m++){
-        xd[m].resize(monomer_matsize[0] + to_recv_buffer_len[0]);
-        yd[m].resize(monomer_matsize[0] + to_recv_buffer_len[0]);
-        recv_xd[m] = new double [to_recv_buffer_len[0]];
-        recv_yd[m]= new double [to_recv_buffer_len[0]];
-        send_xd[m]= new double [to_send_buffer_len[0]];
-        send_yd[m] = new double [to_send_buffer_len[0]];
-    }
+    // we add extra space at the end of wave function array x,y.
+    // Which will store the wave function elements received from other process through MPI.
+    x.resize(matsize + to_recv_buffer_len);
+    y.resize(matsize+ to_recv_buffer_len);
+
+    recv_x = new double [to_recv_buffer_len];
+    recv_y= new double [to_recv_buffer_len];
+    send_x = new double[to_send_buffer_len];
+    send_y= new double [to_send_buffer_len];
+
 ```
 
-This code extend $xd$ (real part of wave function) , $yd$ (imaginary part of wave function)  array to reside extra M elements. 
+This code extend $x$ (real part of wave function) , $y$ (imaginary part of wave function)  array to reside extra M elements. 
 
 #### 1.4 Decide row, index array for matrix multiplication
 
@@ -779,7 +789,5 @@ void monomer::SUR_onestep_MPI(){
 See before we do  $H \times \psi$ we have  : **update_dx()**  , **update_dy()** .
 
 These functions are for upodating elements of $\psi(m)$ for $H(n,m) \neq 0$  if $m$ is not in local array of wave function $\psi$ .
-
-
 
 

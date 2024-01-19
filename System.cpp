@@ -13,7 +13,7 @@ system::system() {
 
 system::~system(){
     // destructor for system()
-    delete [] x_electronic;
-    delete [] y_electronic;
-    delete [] electronic_state_energy;
+    delete [] x_exciton;
+    delete [] y_exciton;
+    delete [] exciton_state_energy;
 }

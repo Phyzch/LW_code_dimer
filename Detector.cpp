@@ -24,7 +24,7 @@ monomer::~monomer(){
     delete [] proptime;
     delete [] initial_state_energy;
 
-    for(i=0; i < electronic_state_num; i++){
+    for(i=0; i < exciton_state_num; i++){
         delete [] monomer_matsize_each_process[i];
         delete [] monomer_matsize_offset_each_process[i];
         delete [] monomer_offnum_each_process[i];
@@ -37,7 +37,7 @@ monomer::~monomer(){
         delete [] yd_all[i];
 
         delete [] mfreq[i];
-        delete [] electron_phonon_coupling[i];
+        delete [] exciton_phonon_coupling[i];
         delete [] initial_vibrational_state[i];
         delete [] aij[i];
 
@@ -48,7 +48,7 @@ monomer::~monomer(){
 
     delete [] aij;
     delete [] mfreq;
-    delete [] electron_phonon_coupling;
+    delete [] exciton_phonon_coupling;
     delete [] monomer_matsize_each_process;
     delete [] monomer_matsize_offset_each_process;
     delete [] monomer_offnum_each_process;
@@ -61,7 +61,7 @@ monomer::~monomer(){
     delete [] xd_all;
     delete [] yd_all;
 
-    for(m=0;m<electronic_state_num;m++){
+    for(m=0; m < exciton_state_num; m++){
         delete[] nmax[m];
     }
     delete [] nmax;

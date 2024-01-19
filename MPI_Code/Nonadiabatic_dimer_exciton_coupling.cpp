@@ -60,7 +60,7 @@ double compute_franck_condon_factor(double alpha, int m, int n){
     int nm_min = min(n,m);
     int l;
     double franck_condon_factor = 0;
-    // prefacto = e^{-alpha^2/2} sqrt(n! m!) * alpha^{n+m}
+    // prefactor = e^{-alpha^2/2} sqrt(n! m!) * alpha^{n+m}
     // std::tgamma(n+1) = n!
     double prefactor = exp(- pow(alpha,2)/2) * pow(alpha, n + m) * sqrt(std::tgamma(n+1)  * std::tgamma(m+1) );
 
@@ -102,7 +102,6 @@ void monomer::compute_franck_condon_factor_table() {
             max_qn = nmax[0][i];
         }
     }
-    int monomer_number = 2;
 
     // include states from 0 to max_qn;
     max_qn = max_qn + 1;
@@ -121,7 +120,7 @@ void monomer::compute_franck_condon_factor_table() {
 
     for (m=0; m < monomer_number ; m++ ){
         for(i=0;i<nmodes[m];i++){
-            alpha = electron_phonon_coupling[m][i];
+            alpha = exciton_phonon_coupling[m][i];
             for(j=0;j<max_qn;j++){
                 for(k=0;k<max_qn;k++){
                     franck_condon_factor = compute_franck_condon_factor(alpha, j , k);
@@ -136,9 +135,9 @@ void monomer::compute_franck_condon_factor_table() {
     if (my_id == 0){
         ofstream franck_condon_output;
         franck_condon_output.open(path + "franck_condon.txt");
-        for(m=0;m<monomer_number;m++){
+        for(m = 0;m < monomer_number; m++){
             for(i=0;i<nmodes[m];i++){
-                franck_condon_output << "alpha: " << electron_phonon_coupling[m][i] << endl;
+                franck_condon_output << "alpha: " << exciton_phonon_coupling[m][i] << endl;
                 for(j=0;j<max_qn;j++){
                     for(k=0;k<max_qn;k++){
                         franck_condon_output << franck_condon_factor_table[m][i][j][k] << " ";
@@ -253,7 +252,7 @@ void full_system:: compute_nonadiabatic_offdiagonal_matrix_full_system(vector < 
         state_monomer1_state_index = vibrational_state_index_list[0][i]; // global index for monomer (monomer)
         state_monomer2_state_index = vibrational_state_index_list[1][i];
 
-        state_energy = s.electronic_state_energy[state_exciton_state_index] + monomer1_vib_state_energy_all_pc[state_monomer1_state_index] + monomer2_vib_state_energy_all_pc[state_monomer2_state_index];
+        state_energy = s.exciton_state_energy[state_exciton_state_index] + monomer1_vib_state_energy_all_pc[state_monomer1_state_index] + monomer2_vib_state_energy_all_pc[state_monomer2_state_index];
 
         if (state_exciton_state_index == 0){
             coupled_state_exciton_state_index = 1;
@@ -288,7 +287,7 @@ void full_system:: compute_nonadiabatic_offdiagonal_matrix_full_system(vector < 
 
                 off_diagonal_matrix_ele = nonadiabatic_coupling * franck_condon_factor_monomer1 * franck_condon_factor_monomer2;
 
-                coupled_state_energy = s.electronic_state_energy[ coupled_state_exciton_state_index ] + monomer1_vib_state_energy_all_pc[coupled_state_monomer1_state_index] + monomer2_vib_state_energy_all_pc[coupled_state_monomer2_state_index];
+                coupled_state_energy = s.exciton_state_energy[ coupled_state_exciton_state_index ] + monomer1_vib_state_energy_all_pc[coupled_state_monomer1_state_index] + monomer2_vib_state_energy_all_pc[coupled_state_monomer2_state_index];
 
                 state_energy_difference = abs(state_energy - coupled_state_energy);
 

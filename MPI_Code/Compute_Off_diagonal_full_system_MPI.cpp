@@ -248,17 +248,18 @@ void full_system:: rearrange_matrix_element_in_different_pc(vector < double > & 
 // for anharmonic coupling in the same monomer coupling.
 void full_system::compute_monomer_anharmonic_coupling_in_full_matrix_MPI(vector < double > & anharmonic_coupling_mat, vector  <int> & anharmonic_coupling_irow, vector<int> & anharmonic_coupling_icol){
     // compute anharmonic coupling within monomer in each exciton state.
-    int monomer_number = 2;
     int i;
     for(i = 0; i < monomer_number; i++){
-        compute_anharmonic_coupling_in_full_matrix_in_one_exciton_state_MPI(i, anharmonic_coupling_mat, anharmonic_coupling_irow, anharmonic_coupling_icol );
+        compute_anharmonic_coupling_in_full_matrix_in_one_monomer_MPI(i, anharmonic_coupling_mat,
+                                                                      anharmonic_coupling_irow,
+                                                                      anharmonic_coupling_icol);
     }
 
     rearrange_matrix_element_in_different_pc(anharmonic_coupling_mat, anharmonic_coupling_irow,
                                              anharmonic_coupling_icol);
 }
 
-void full_system::compute_anharmonic_coupling_in_full_matrix_in_one_exciton_state_MPI(int monomer_index, vector < double > & anharmonic_coupling_mat, vector  <int> & anharmonic_coupling_irow, vector<int> & anharmonic_coupling_icol ){
+void full_system::compute_anharmonic_coupling_in_full_matrix_in_one_monomer_MPI(int monomer_index, vector < double > & anharmonic_coupling_mat, vector  <int> & anharmonic_coupling_irow, vector<int> & anharmonic_coupling_icol ){
     // we just use q_index to easily compute the result.
     vector<quotient_state> * monomer_state_list_ptr;
     quotient_state * monomer_state_ptr;

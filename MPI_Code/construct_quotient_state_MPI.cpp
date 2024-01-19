@@ -20,7 +20,7 @@ void full_system::construct_quotient_state_all_MPI(){
 
 
     // construct MPI version of q_index is easy to do. just let every process search the index in their local dlist.
-    // q_index is monomer Hamiltonian's element relation to location in full matrix.
+    // anharmonic_coupling_info_index is monomer Hamiltonian's element relation to location in full matrix.
     construct_anharmonic_coupling_info_index_list_MPI();
 }
 

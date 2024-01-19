@@ -29,7 +29,7 @@ void monomer:: compute_local_density_of_state(vector<vector<vector<int>>> & coup
     vector<vector<double>> coupling_state_strength;
     vector<vector<double>> coupling_state_energy_diff;
     vector<double> effective_coupling_number;
-    for(monomer_index = 0; monomer_index < electronic_state_num; monomer_index ++ ){
+    for(monomer_index = 0; monomer_index < exciton_state_num; monomer_index ++ ){
         vector<int> coupling_state_index_each_monomer;
         vector<vector<int>> coupling_state_qn_each_monomer;
         vector<double> coupling_state_strength_each_monomer;
@@ -37,13 +37,13 @@ void monomer:: compute_local_density_of_state(vector<vector<vector<int>>> & coup
         double effective_coupling_number_each_monomer;
 
         if (monomer_index == 0){
-            compute_local_density_of_state_subroutine(monomer_index, dmat_diagonal_global0,
+            compute_local_density_of_state_subroutine(monomer_index, monomer1_vib_state_energy_all_pc,
                                                       coupling_state_index_each_monomer, coupling_state_qn_each_monomer,
                                                       coupling_state_strength_each_monomer, coupling_state_energy_diff_each_monomer,
                                                       effective_coupling_number_each_monomer);
         }
         else{
-            compute_local_density_of_state_subroutine(monomer_index, dmat_diagonal_global1,
+            compute_local_density_of_state_subroutine(monomer_index, monomer2_vib_state_energy_all_pc,
                                                       coupling_state_index_each_monomer, coupling_state_qn_each_monomer,
                                                       coupling_state_strength_each_monomer, coupling_state_energy_diff_each_monomer,
                                                       effective_coupling_number_each_monomer);

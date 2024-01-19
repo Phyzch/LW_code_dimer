@@ -16,7 +16,7 @@ class system {
 public:
 	friend class full_system;
 	friend class monomer;
-	double *x_electronic, *y_electronic, *electronic_state_energy; //
+	double *x_exciton, *y_exciton, *exciton_state_energy; //
 	int exciton_state_num, tlmatsize;
 	void read_MPI(ifstream &input, ofstream &output, ofstream &log);
     void initialize_energy_level(ifstream & input, ofstream & output);
@@ -29,12 +29,14 @@ public:
 
 class monomer {
 private:
-    int electronic_state_num;
+    int exciton_state_num;
+
     string path;
 
     int * initial_state_index;
     int * initial_state_pc_id;
 public:
+    int monomer_number;
 	// for mode:  modtype: =0 dark or =1 bright state.  nmax: maximum state number for each mode. nmodes: total mode numbers.
 	friend class full_system;
 	friend class system;
@@ -52,8 +54,8 @@ public:
 
 	double ** total_monomer_mat;
 	int ** total_monomer_irow, ** total_monomer_icol; // monomer_irow, monomer_icol, monomer_mat in all process.
-    vector<double> dmat_diagonal_global0;
-    vector<double> dmat_diagonal_global1;
+    vector<double> monomer1_vib_state_energy_all_pc;
+    vector<double> monomer2_vib_state_energy_all_pc;
 
 	vector<vector<int>> *monomer_vibrational_states_quantum_number_list;  //monomer_vibrational_states_quantum_number_list: the q.n. for states (m,i) at coordinate j.  [m][i][j]: [monomer][state][mode]
 
@@ -71,7 +73,7 @@ public:
 	double *proptime; // we set proptime for two different mode to be the same
 
     // for EV coupling
-    double ** electron_phonon_coupling;
+    double ** exciton_phonon_coupling;
     double **** franck_condon_factor_table;
 
     int ** remoteVecCount,  ** remoteVecPtr,  **  remoteVecIndex;
@@ -148,6 +150,7 @@ public:
 class full_system {
 	// monomer+ system
 private:
+    int monomer_number;
 	int matnum, offnum, matsize; // matnum is total matrix element number, it should be smaller than matdim.
 	                                // in our program, usually we set matdim=matnum and use these variable interchangably.
 								 //offnum: off diagonal matrix element number. matsize: matrix size for full matrix (number of diagonal element)
@@ -231,8 +234,8 @@ public:
     void construct_anharmonic_coupling_info_index_list_MPI();
     void rearrange_monomer1list();
     void compute_full_Hamiltonian_offdiagonal_part_MPI();
-    void compute_anharmonic_coupling_in_full_matrix_in_one_exciton_state_MPI(int monomer_index, vector < double > & anharmonic_coupling_mat,
-                                                                             vector<int> & anharmonic_coupling_irow, vector<int> & anharmonic_coupling_icol);
+    void compute_anharmonic_coupling_in_full_matrix_in_one_monomer_MPI(int monomer_index, vector < double > & anharmonic_coupling_mat,
+                                                                       vector<int> & anharmonic_coupling_irow, vector<int> & anharmonic_coupling_icol);
     void compute_monomer_anharmonic_coupling_in_full_matrix_MPI(vector < double > & anharmonic_coupling_mat, vector  <int> & anharmonic_coupling_irow, vector<int> & anharmonic_coupling_icol);
 
     void compute_nonadiabatic_offdiagonal_matrix_full_system(vector < double > & nonadiabatic_off_mat,
