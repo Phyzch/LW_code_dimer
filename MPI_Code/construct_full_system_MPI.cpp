@@ -22,7 +22,7 @@ void full_system:: compute_sstate_dstate_diagpart_dirow_dicol_MPI(){
     int i,j,k,l;
     int mat_index = 0;
     double energy;
-    // each process responsible to couple monomer 1's state with monomer 2's state to form state in x,y.
+    // each process responsible to couple monomer 1's state with monomer 2's state to form state in real_part_wave_func,imag_part_wave_func.
     int vsize_monomer1 = d.total_monomer_mat_size[0] / num_proc;
     int vsize_monomer2 = d.total_monomer_mat_size[1] / num_proc;
 
@@ -124,8 +124,8 @@ void full_system::Initial_state_MPI() {
     double x1, y1, x2, y2, x3, y3;
     int m, i;
     norm = 0;
-    x.reserve(matsize);
-    y.reserve(matsize);
+    real_part_wave_func.reserve(matsize);
+    imag_part_wave_func.reserve(matsize);
 
     double value;
     for (i = 0; i < matsize; i++) {
@@ -137,10 +137,10 @@ void full_system::Initial_state_MPI() {
         x3 = d.xd_all[1][vibrational_state_index_list[1][i]];
         y3 = d.yd_all[1][vibrational_state_index_list[1][i]];
         value = x1*(x2*x3 - y2*y3) - y1*(x2*y3 + x3*y2);
-        x.push_back(value);
+        real_part_wave_func.push_back(value);
         value = y1*(x2*x3 - y2*y3) + x1*(x2*y3 + x3*y2);
-        y.push_back(value);
-        norm = norm + pow(x[i], 2) + pow(y[i], 2);
+        imag_part_wave_func.push_back(value);
+        norm = norm + pow(real_part_wave_func[i], 2) + pow(imag_part_wave_func[i], 2);
         if(isnan(norm)){
             cout<< "Norm is not a number" << endl;
         }
@@ -149,8 +149,8 @@ void full_system::Initial_state_MPI() {
     MPI_Allreduce(&norm, &total_norm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     total_norm = 1 / sqrt(total_norm);
     for (i = 0; i < matsize; i++) {
-        x[i] = x[i] * total_norm;
-        y[i] = y[i] * total_norm;
+        real_part_wave_func[i] = real_part_wave_func[i] * total_norm;
+        imag_part_wave_func[i] = imag_part_wave_func[i] * total_norm;
     }
 
 }

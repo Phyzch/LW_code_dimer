@@ -37,7 +37,7 @@ int compare_quotient_state(int sys_state1, const vector <int>  & vmode1, int sys
 
 // method to use find_location_binary : create a list vector <quotient_state>.
 // for example, to compute reduced density matrix for monomer 1, we construct quotient Hilbert space of Hilbert space H_{d1}
-// record  x[state] and dx[state] corresponding to this quotient space state d1. (in full_hamiltonian_state_index_list and monomer_state_index_list).
+// record  real_part_wave_func[state] and dx[state] corresponding to this quotient space state d1. (in full_hamiltonian_state_index_list and monomer_state_index_list).
 int find_location_binarysearch_quotient_state(const vector<quotient_state> & list, int sys_state, const vector <int> & vmode, bool & exist){
     // used to sort quotient state list. return location to insert or manipulate, also return exist to indicate this quotient_state exist in list or not
     // use information of exciton_state_index_list and vmode to locate the state.

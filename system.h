@@ -157,8 +157,8 @@ private:
     int total_matnum, total_offnum, total_matsize;
     int * matsize_each_process, *mat_offnum_each_process, *matnum_each_process;
     int * matsize_offset_each_process, * matnum_offset_each_process;
-    vector <double> x;
-    vector <double> y; // x[matsize], y[matsize]
+    vector <double> real_part_wave_func;
+    vector <double> imag_part_wave_func; // real_part_wave_func[matsize], imag_part_wave_func[matsize]
 	vector <double> mat; // full system matrix, size: matdim
 	vector <int> irow, icol; // row index and column index of matrices, size:matdim
 	vector <int> exciton_state_index_list;
@@ -186,15 +186,15 @@ private:
     vector<double> monomer2_vib_state_energy_all_pc;
 
 
-    // used for receiving and sending vedtor x , y from/to other process
+    // used for receiving and sending vedtor real_part_wave_func , imag_part_wave_func from/to other process
     int * remoteVecCount,  *remoteVecPtr,  * remoteVecIndex,
      * tosendVecCount, * tosendVecPtr,  * tosendVecIndex;
-    double * recv_x,  * recv_y, * send_x, * send_y;
+    double * recv_real_wave_func,  * recv_imag_wave_func, * send_real_wave_func, * send_imag_wave_func;
     int  to_send_buffer_len,  to_recv_buffer_len;
     vector<int>  local_irow;
     vector <int>  local_icol;
 
-    // used for recving and sending vector x,y for computing system_energy
+    // used for recving and sending vector real_part_wave_func,imag_part_wave_func for computing system_energy
 
 public:
 	class system s;
@@ -252,8 +252,8 @@ public:
     int construct_recvbuffer_index();
     void prepare_evolution();
     void  update_x_y();
-    void update_x();
-    void update_y();
+    void update_real_part();
+    void update_imag_part();
     void evolve_wave_func_one_step();
     void full_system_SUR_one_step();
     // Output function MPI version
@@ -262,8 +262,8 @@ public:
 
     void shift_mat();
 
-    void gather_x_y(double * x_all, double * y_all); // gather x,y to save the state or load the state to file.
-    void scatter_x_y(double * x_all, double * y_all); // scatter x_all, y_all to x,y.
+    void gather_x_y(double * x_all, double * y_all); // gather real_part_wave_func,imag_part_wave_func to save the state or load the state to file.
+    void scatter_x_y(double * x_all, double * y_all); // scatter x_all, y_all to real_part_wave_func,imag_part_wave_func.
 
     void Normalize_wave_function();
 

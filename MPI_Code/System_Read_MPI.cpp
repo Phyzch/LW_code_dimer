@@ -22,7 +22,9 @@ void system::read_MPI(ifstream &input, ofstream &output, ofstream &log) {
         }
         output << "exciton_state_num " << exciton_state_num << " ";
     }
+
     MPI_Bcast(&exciton_state_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
     tlmatsize = exciton_state_num;  // system wave function array size.
 
     allocate_space();

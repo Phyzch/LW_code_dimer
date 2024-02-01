@@ -72,9 +72,9 @@ int construct_send_buffer_index(int * remoteVecCount_element, int * remoteVecPtr
         tosendVecPtr_element[i]= tosendVecPtr_element[i-1] + tosendVecCount_element[i-1];
     }
     // compute total length of buffer to send
-    to_send_buffer_len=0;
+    to_send_buffer_len = 0;
     for(i=0;i<num_proc;i++){
-        to_send_buffer_len= to_send_buffer_len + tosendVecCount_element[i];
+        to_send_buffer_len = to_send_buffer_len + tosendVecCount_element[i];
     }
     // Index (in global) of element to send. use MPI_Alltoallv to receive the index to send.
     tosendVecIndex_ptr = new int [to_send_buffer_len];
@@ -125,7 +125,7 @@ void monomer::prepare_evolution(){
 
     int * search_Ind; // local variable, used for compute local_dicol;
     int col_index_to_search;
-    // local column index used when we do H *x and H*y
+    // local column index used when we do H *real_part_wave_func and H*imag_part_wave_func
     local_dirow= new vector<int> [2];
     local_dicol = new vector<int> [2]; // column index for computation in local matrix.
     // buffer to send and receive buffer to/from other process.
@@ -437,7 +437,7 @@ void full_system::pre_coupling_evolution_MPI(int initial_state_choice){
     delete [] d.local_dicol;
 
     if(initial_state_choice ==1){
-        // if we simulate bright state, we will delete x[] ,y [] in case we may want to simulate monomer lower bright state later.
+        // if we simulate bright state, we will delete real_part_wave_func[] ,imag_part_wave_func [] in case we may want to simulate monomer lower bright state later.
         delete [] d.xd;
         delete [] d.yd;
     }

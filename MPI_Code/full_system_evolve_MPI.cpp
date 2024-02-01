@@ -34,9 +34,10 @@ int full_system::construct_recvbuffer_index(){
     int prev_col=-1;
     int col_index;
     int col_pc_id;
-    for(i=0;i<matnum;i++){
-        col_index= icol_copy[i];
-        if(col_index>prev_col and (col_index<local_begin or col_index >= local_end) ){
+
+    for(i = 0;i < matnum; i++){
+        col_index = icol_copy[i];
+        if(col_index > prev_col and (col_index < local_begin or col_index >= local_end) ){
             // find process id this icol belong to
             for(k=1;k<num_proc;k++){
                 if(col_index < matsize_offset_each_process[k]){
@@ -44,8 +45,10 @@ int full_system::construct_recvbuffer_index(){
                 }
             }
             col_pc_id= k-1;
+
             remoteVecCount[col_pc_id]++;
             remoteVecIndex[j]= col_index;
+
             j++;
         }
         prev_col= col_index;
@@ -71,18 +74,21 @@ void full_system:: prepare_evolution(){
     // You have to allocate space for tosendVecCount, tosendVecPtr.
     tosendVecCount = new int [num_proc];
     tosendVecPtr = new int [num_proc];
+
     to_recv_buffer_len = construct_recvbuffer_index();
+
     to_send_buffer_len = construct_send_buffer_index(remoteVecCount,remoteVecPtr,remoteVecIndex,
                                                     tosendVecCount,tosendVecPtr,tosendVecIndex);
-    // we add extra space at the end of wave function array x,y.
-    // Which will store the wave function elements received from other process through MPI.
-    x.resize(matsize + to_recv_buffer_len);
-    y.resize(matsize+ to_recv_buffer_len);
 
-    recv_x = new double [to_recv_buffer_len];
-    recv_y= new double [to_recv_buffer_len];
-    send_x = new double[to_send_buffer_len];
-    send_y= new double [to_send_buffer_len];
+    // we add extra space at the end of wave function array real_part_wave_func,imag_part_wave_func.
+    // Which will store the wave function elements received from other process through MPI.
+    real_part_wave_func.resize(matsize + to_recv_buffer_len);
+    imag_part_wave_func.resize(matsize + to_recv_buffer_len);
+
+    recv_real_wave_func = new double [to_recv_buffer_len];
+    recv_imag_wave_func = new double [to_recv_buffer_len];
+    send_real_wave_func = new double[to_send_buffer_len];
+    send_imag_wave_func = new double [to_send_buffer_len];
 
     local_irow.reserve(matnum);  // row index for matrix multiplication in the single process.
     local_icol.reserve(matnum);  // col index for matrix multiplication in the single process.
@@ -111,12 +117,12 @@ void full_system:: full_system_SUR_one_step()
     for(i=0;i<matnum;i++){
         irow_index = local_irow[i];
         icol_index= local_icol[i];
-        x[irow_index] = x[irow_index] + mat[i] * y[icol_index];
+        real_part_wave_func[irow_index] = real_part_wave_func[irow_index] + mat[i] * imag_part_wave_func[icol_index];
     }
     for(i=0;i<matnum;i++){
         irow_index=local_irow[i];
         icol_index= local_icol[i];
-        y[irow_index] = y[irow_index] - mat[i] * x[icol_index];
+        imag_part_wave_func[irow_index] = imag_part_wave_func[irow_index] - mat[i] * real_part_wave_func[icol_index];
     }
 }
 
@@ -126,48 +132,49 @@ void full_system:: update_x_y(){
     // update tosend_xd for sending  to other process
     for(i=0;i<to_send_buffer_len;i++){
         local_index = tosendVecIndex[i] - matsize_offset_each_process[my_id];
-        send_x[i] = x[local_index];
-        send_y[i] = y[local_index];
+        send_real_wave_func[i] = real_part_wave_func[local_index];
+        send_imag_wave_func[i] = imag_part_wave_func[local_index];
     }
 
-    MPI_Alltoallv(&send_x[0],tosendVecCount,tosendVecPtr,MPI_DOUBLE,
-                  &recv_x[0],remoteVecCount,remoteVecPtr,MPI_DOUBLE,MPI_COMM_WORLD);
-    MPI_Alltoallv(&send_y[0],tosendVecCount,tosendVecPtr,MPI_DOUBLE,
-                  &recv_y[0],remoteVecCount,remoteVecPtr,MPI_DOUBLE,MPI_COMM_WORLD);
+    MPI_Alltoallv(&send_real_wave_func[0], tosendVecCount, tosendVecPtr, MPI_DOUBLE,
+                  &recv_real_wave_func[0], remoteVecCount, remoteVecPtr, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Alltoallv(&send_imag_wave_func[0], tosendVecCount, tosendVecPtr, MPI_DOUBLE,
+                  &recv_imag_wave_func[0], remoteVecCount, remoteVecPtr, MPI_DOUBLE, MPI_COMM_WORLD);
     for(i=0;i<to_recv_buffer_len;i++){
-        x[matsize+i] = recv_x[i];
-        y[matsize+i] = recv_y[i];
+        real_part_wave_func[matsize + i] = recv_real_wave_func[i];
+        imag_part_wave_func[matsize + i] = recv_imag_wave_func[i];
     }
 }
 
-void full_system:: update_x(){
+void full_system:: update_real_part(){
     int i;
     int local_index;
     for(i=0;i<to_send_buffer_len;i++){
         local_index = tosendVecIndex[i] - matsize_offset_each_process[my_id];
-        send_x[i] = x[local_index];
+        send_real_wave_func [i] = real_part_wave_func [local_index];
     }
 
-    MPI_Alltoallv(&send_x[0],tosendVecCount,tosendVecPtr,MPI_DOUBLE,
-                  &recv_x[0],remoteVecCount,remoteVecPtr,MPI_DOUBLE,MPI_COMM_WORLD);
+    MPI_Alltoallv(&send_real_wave_func[0], tosendVecCount, tosendVecPtr, MPI_DOUBLE,
+                  &recv_real_wave_func[0], remoteVecCount, remoteVecPtr, MPI_DOUBLE, MPI_COMM_WORLD);
     for(i=0;i<to_recv_buffer_len;i++){
-        x[matsize+i] = recv_x[i];
+        real_part_wave_func[matsize + i] = recv_real_wave_func[i];
     }
 }
 
-void full_system::update_y(){
+void full_system::update_imag_part(){
     int i;
     int local_index;
     // update tosend_xd for sending  to other process
     for(i=0;i<to_send_buffer_len;i++){
         local_index = tosendVecIndex[i] - matsize_offset_each_process[my_id];
-        send_y[i] = y[local_index];
+        send_imag_wave_func [i] = imag_part_wave_func [local_index];
     }
 
-    MPI_Alltoallv(&send_y[0],tosendVecCount,tosendVecPtr,MPI_DOUBLE,
-                  &recv_y[0],remoteVecCount,remoteVecPtr,MPI_DOUBLE,MPI_COMM_WORLD);
+    MPI_Alltoallv(&send_imag_wave_func[0], tosendVecCount, tosendVecPtr, MPI_DOUBLE,
+                  &recv_imag_wave_func[0], remoteVecCount, remoteVecPtr, MPI_DOUBLE, MPI_COMM_WORLD);
+
     for(i=0;i<to_recv_buffer_len;i++){
-        y[matsize+i] = recv_y[i];
+        imag_part_wave_func [matsize + i] = recv_imag_wave_func [i];
     }
 }
 
@@ -175,21 +182,21 @@ void full_system:: evolve_wave_func_one_step(){
     // We can also use Chebyshev method here. But here we use SUR algorithm which gets the job done.
     int i, j, irow_index, icol_index;
     // update imaginary part of wave function received from other process.
-    update_y();
+    update_imag_part();
 
     // SUR algorithm. (https://doi.org/10.1016/0009-2614(94)01474-A)
     for(i=0;i<matnum;i++){
         irow_index = local_irow[i];
         icol_index= local_icol[i];
-        x[irow_index] = x[irow_index] + mat[i] * y[icol_index];
+        real_part_wave_func[irow_index] = real_part_wave_func[irow_index] + mat[i] * imag_part_wave_func[icol_index];
     }
 
     // update real part of wave function received from other process.
-    update_x();
+    update_real_part();
     for(i=0;i<matnum;i++){
         irow_index=local_irow[i];
         icol_index= local_icol[i];
-        y[irow_index] = y[irow_index] - mat[i] * x[icol_index];
+        imag_part_wave_func[irow_index] = imag_part_wave_func[irow_index] - mat[i] * real_part_wave_func[icol_index];
     }
 }
 
@@ -198,11 +205,11 @@ void full_system::Normalize_wave_function(){
     norm = 0;
     total_norm = 0;
     for(i=0;i<matsize;i++) {
-        norm = norm + x[i] * x[i] + y[i] * y[i];
+        norm = norm + real_part_wave_func[i] * real_part_wave_func[i] + imag_part_wave_func[i] * imag_part_wave_func[i];
     }
     MPI_Allreduce(&norm,&total_norm,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
     for(i=0;i<matsize;i++){
-        x[i] = x[i] / sqrt(total_norm);
-        y[i] = y[i] / sqrt(total_norm);
+        real_part_wave_func[i] = real_part_wave_func[i] / sqrt(total_norm);
+        imag_part_wave_func[i] = imag_part_wave_func[i] / sqrt(total_norm);
     }
 }

@@ -27,14 +27,14 @@ void full_system:: etot_MPI(double * hx, double * hy){
     for(i=0;i<matnum;i++){
         irow_index = local_irow[i];
         icol_index = local_icol[i];
-        hx[irow_index] = hx[irow_index] + mat[i] * x[icol_index];
-        hy[irow_index] = hy[irow_index] + mat[i] * y[icol_index];
+        hx[irow_index] = hx[irow_index] + mat[i] * real_part_wave_func[icol_index];
+        hy[irow_index] = hy[irow_index] + mat[i] * imag_part_wave_func[icol_index];
     }
 
     for(i=0;i<matsize;i++){
-        local_e = local_e + x[i] * hx[i] + y[i] * hy[i];
-        norm = norm + x[i] * x[i] + y[i] * y[i];
-        local_test= local_test+ hx[i]*y[i]- hy[i]*x[i];
+        local_e = local_e + real_part_wave_func[i] * hx[i] + imag_part_wave_func[i] * hy[i];
+        norm = norm + real_part_wave_func[i] * real_part_wave_func[i] + imag_part_wave_func[i] * imag_part_wave_func[i];
+        local_test= local_test + hx[i] * imag_part_wave_func[i] - hy[i] * real_part_wave_func[i];
     }
     total_energy=0;
     MPI_Allreduce(&local_e,&total_energy,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);

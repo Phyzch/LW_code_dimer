@@ -41,10 +41,10 @@ full_system::~full_system(){
     delete [] tosendVecCount;
     delete [] tosendVecPtr;
     delete [] tosendVecIndex;
-    delete [] recv_x;
-    delete [] recv_y;
-    delete [] send_x;
-    delete [] send_y;
+    delete [] recv_real_wave_func;
+    delete [] recv_imag_wave_func;
+    delete [] send_real_wave_func;
+    delete [] send_imag_wave_func;
 
 }
 

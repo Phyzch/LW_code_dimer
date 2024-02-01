@@ -23,7 +23,7 @@ in my machine, I have #include<mpi/mpi.h>. This may be problematic on cluster or
 
 3. ```bash
    cd SOURCE_DIRECTORY/Release 
-   cmake ..
+   cmake -DCMAKE_BUILD_TYPE=Release ..
    make
    mpirun -np 10 ./executable (10 is number of process you want to use
    change it to different number if you want to use more or less)
@@ -55,13 +55,14 @@ in my machine, I have #include<mpi/mpi.h>. This may be problematic on cluster or
 
 ```cpp
 full_system::full_system(string path1 , vector<vector<int>> & initial_state_quantum_number) {
-	path = path1;
+    path = path1;
     d.path = path;
     // read hyper parameter and time step from input.txt
     read_input_with_MPI();
 
-	s.read_MPI(input, output, log);
-	d.read_MPI(input, output, s.exciton_state_num, path);
+    s.read_MPI(input, output, log);
+    d.read_MPI(input, output, s.exciton_state_num, path);
+    
     d.construct_initial_state_MPI( initial_state_quantum_number);
 
     compute_monomer_vib_state_basis_set_size_MPI();
@@ -75,15 +76,12 @@ full_system::full_system(string path1 , vector<vector<int>> & initial_state_quan
 
     construct_dimer_Hamiltonian_matrix_with_energy_window_MPI();
 
-	if(my_id ==0){
+    if(my_id ==0){
         cout<<"Finish constructing Matrix"<<endl;
         output_calculation_size_info(); // check if all matrix's dimension is right.
-	}
+    }
 
 }
-	
-
-
 ```
 
 This function construct Hamiltonian  $H$ for our systems.
@@ -99,8 +97,6 @@ s.read_MPI()  , d.read_MPI()  : read parameter from input file
 - **Make sure parameters read from input.txt are broadcasted to all other process, otherwise the simulation in other process will raise error because they don't know the value of the parameter !!!**
 
 )
-
-
 
 #### 2. construct_initial_state_MPI()
 
@@ -130,12 +126,9 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
 ......
 ```
 
-
-
 #### Construct basis set for Hamiltonian:
 
 ```cpp
-
  monomer0_qn[0] = -1; // this is for:  when we go into code: monomer0_qn[i]= monomer0_qn[i]+1, our first state is |000000>
  while (1) {
             label2:;  // label2 is for detector0 to jump to beginning of while(1) loop (this is inner layer of while(1))
@@ -152,7 +145,6 @@ void full_system:: compute_monomer_vib_state_basis_set_size_MPI( ){
                }
 
  }
-           
 ```
 
 This code  goes through all vibrational state at electronic state 0:
@@ -172,8 +164,6 @@ $|0,0, \cdots \rangle  \rightarrow |1,0,\cdots \rangle \rightarrow \cdots \right
              monomer0_energy = monomer0_energy + d.mfreq[0][i] * monomer0_qn[i] ;
         }
      }
-
-
 ```
 
 compute monomer 0 vibrational state energy.
@@ -263,26 +253,20 @@ Here $V_{m}$ is the strength of anharmonic coupling of $m^{th}$ order. $a$ is th
 
 In the code, aij[m][k] is the scaling factor for monomer m , mode k. 
 
-
-
 ```cpp
-```
- if (ntot % 2 == 0) {
-                        value = V_intra;  // anharmonic coupling V0. V3 = V0 * a^3. (a is anharmonic scaling factor)
-                    } else {
-                        value = -V_intra;
-                    }
-                    for (k = 0; k < nmodes[m]; k++) {
-                        value = value * pow(aij[m][k]* nbar[k], deln[k]);
-                    }
-```
+if (ntot % 2 == 0) {
+ value = V_intra; // anharmonic coupling V0. V3 = V0 * a^3. (a is anharmonic scaling factor)
+ } else {
+ value = -V_intra;
+ }
+ for (k = 0; k < nmodes[m]; k++) {
+ value = value * pow(aij[m][k]* nbar[k], deln[k]);
+ }
 ```
 
 Here ntot = $\sum_{i} \Delta n_{i}$ . 1-norm distance between two vibrational states.
 
 nbar[i] : = $(n_{a,i} n_{b,i})^{1/4}$ , here this is square of geometric mean of quantum number in mode i for state a and state b (we are computing anharmonic coupling between state a and state b)
-
-
 
 deln[i]: $\Delta n_{i}$ .  quantum number difference between two states along mode i.
 
@@ -291,8 +275,6 @@ $V_{m} = V_{0} \prod_{i} (a_{i} \sqrt{ (n_{a,i} n_{b,i})^{1/2} })^{\Delta n_{i}}
 Here $V_{0} = 300$ , $a_{i} = \sqrt{f_{i}} / 270$
 
 For the choice of this value, see Bigwood et al PNAS paper : [The vibrational energy flow transition in organic molecules: Theory meets experiment | PNAS](https://www.pnas.org/doi/full/10.1073/pnas.95.11.5960)
-
-
 
 ### 5. construct dimer Hamiltonian matrix
 
@@ -312,8 +294,6 @@ void full_system::construct_dimer_Hamiltonian_matrix_with_energy_window_MPI() {
 
 This function construct the Hamiltonian for dimer (here we refer as full system). 
 
-
-
 #### 5.1 construct dimer states
 
 ```cpp
@@ -327,7 +307,7 @@ Notice here by our definition, irow, icol should be global matrix index across d
 
 ```cpp
                 energy = s.exciton_state_energy[i] + monomer1_vib_state_energy_all_pc[j] + monomer2_vib_state_energy_all_pc[k]; // energy of electronic state (s.tlmat[i]) + energy in two monomer(d.monomer1_vib_state_energy_all_pc[j] + d.monomer2_vib_state_energy_all_pc[k]).
- 
+
                 mat.push_back(energy);  // diagonal part is energy of vibrational state
                 irow.push_back(mat_index); //mat_index is local, we have to re-compute it after all process compute its own irow, icol. See code below
                 icol.push_back(mat_index);
@@ -382,26 +362,18 @@ struct quotient_state {   // monomer quotient_space_state.
         vmode = vmode1;
     }
 };
-
 ```
 
 In summary, for dimer, when constructing anharmonic coupling within  monomer 1, the coupling is between states that have same vibrational states in monomer 2 and the same exciton state.  
 
-
-
 Therefore, we group all dimer states with the same vibrational states of monomer 2 and the exciton state into monomer1_quotient_state_list. 
 
-
-
 We group all dimer states with the same vibrational states of monomer 1 and the exciton state into monomer2_quotient_state_list. 
-
-
 
 We create a strcuture : 
 
 ```cpp
 struct quotient_state
-
 ```
 
 which is defined by exciton state and vibrational state of another monomer (monomer2). 
@@ -414,19 +386,13 @@ Then each quotient state will have list:
 
 which will record index of vibrational states of this monomer (monomer 1) and index of dimer states in full_hamiltonian basis set.
 
-
-
 We also have the list attached to each quotient state represent anharmonic coupling in this monomer (monomer 1):
 
 * anharmonic_coupling_info_index_list
 
 * anharmonic_coupling_value_list
 
-
-
 anharmonic_coupling_info_index_list : (i,j,k,l,m) records index of vibrational state in monomer 1 (i,j) and index in full matrix (k,l). m is index for anharmonic coupling in monomer hamiltonian.
-
- 
 
 The function below constructs anharmonic_coupling_info_index_list for each monomer.
 
@@ -435,8 +401,6 @@ The function below constructs anharmonic_coupling_info_index_list for each monom
     // anharmonic_coupling_info_index is monomer Hamiltonian's element relation to location in full matrix.
     construct_anharmonic_coupling_info_index_list_MPI();
 ```
-
-
 
 #### 5.3 construct full Hamiltonian off diagonal part:
 
@@ -469,7 +433,6 @@ void full_system::compute_full_Hamiltonian_offdiagonal_part_MPI(){
 
 
 }
-
 ```
 
 There are two type of  coupling between vibrational states in such system:
@@ -478,27 +441,17 @@ There are two type of  coupling between vibrational states in such system:
 
 * nonadiabatic coupling between states in different exciton state
 
-
-
 They are computed by different function:
 
 * compute_monomer_anharmonic_coupling_in_full_matrix_MPI
 
 * compute_nonadiabatic_offdiagonal_matrix_full_system
 
-
-
 Then anharmonic terms are combined together: combine_offdiagonal_term
-
-
 
 FInal results recorded in mat, irow, icol matrix.
 
-
-
 Details of computing anharmonic coupling in each monomer and nonadiabatic coupling between states in different exciton states are given below:
-
-
 
 ##### 5.3.1 anharmonic coupling in full matrix
 
@@ -506,19 +459,13 @@ The anharmonic coupling between dimer states is due to anharmonic coupling withi
 
 The (anharmonic_coupling_info_index_list) and (anharmonic_coupling_value_list) record coupling strength and info of dimer vibratonal states to facilitate constructing anharmonic couplings in dimer basis set.
 
-
-
 ##### 5.3.2 compute nonadiabatic coupling between two surfaces
 
 We first compute the table of franck condon factor for vibrational modes in each monomer. Because in our model, the monomer is symmetric, therefore, the results are the same for two monomers in our model.
 
-
-
 The Franck Condon factor $\langle m| \alpha ;n \rangle$ is decided by Huang-Rhys factor $S_{i}$ involved in exciton transfer. The displacement factor along each mode $\alpha_i$ is given by $\alpha_{i} = \sqrt{S_{i}}$ . See Appendix A of PNAS paper:  C. Zhang, M. Gruebele, D. E. Logan, and P. G. Wolynes, Surface Crossing and Energy Flow in Many-Dimensional Quantum Systems, Proc. Natl. Acad. Sci. U.S.A. 120, e2221690120 (2023)
 
 for detailed information.
-
-  
 
 **Coupling between state in different vibrational state**
 
@@ -537,8 +484,6 @@ $\begin{array}{r}
 \langle m\left|\alpha ; n \rangle =\exp \left(- \alpha^{2} / 2\right) \langle m\left|\exp \left(\alpha \hat{b}^{\dagger}\right) \exp (-\alpha \hat{b})\right| n \rangle \right)
 \end{array}$
 
-
-
 Above derivation use Baker–Campbell–Hausdorff formula :
 
 [Baker–Campbell–Hausdorff formula - Wikiwand](https://www.wikiwand.com/en/Baker%E2%80%93Campbell%E2%80%93Hausdorff_formula)
@@ -546,9 +491,6 @@ Above derivation use Baker–Campbell–Hausdorff formula :
 More specifically : $e^{\alpha_{\downarrow} b} e^{\alpha_{\uparrow} b^{\dagger}} = e^{\alpha_{\downarrow}b + \alpha_{\uparrow}b^{\dagger}+\frac{1}{2} \alpha_{\downarrow} \alpha_{\uparrow}}$
 
 $ e^{\alpha_{\uparrow} b^{\dagger}} e^{\alpha_{\downarrow} b}= e^{\alpha_{\downarrow}b + \alpha_{\uparrow}b^{\dagger}-\frac{1}{2} \alpha_{\downarrow} \alpha_{\uparrow}}$
-
-
-
 
 The franck condon factor can be computed as following:
 
@@ -580,9 +522,7 @@ double franck_condon_factor = 0;
     }
 ```
 
-
-
-### Evolve_full_sysem_MPI()
+### Quantum_dynamics_evolution()
 
 Evolve Schrodinger equation
 
@@ -594,21 +534,17 @@ $i\hbar \frac{d \psi}{dt} = H \psi $
 
 ![](/home/phyzch/CLionProjects/LW_code_dimer/note_fig/PNG%20image.png)
 
-
-
 ![](/home/phyzch/CLionProjects/LW_code_dimer/note_fig/PNG%20image1.png)
-
-
 
 We use MPI to speed up matrix array multiplication. 
 
-We divide wave function $\psi$ into different part and store in different processes.
+We divide wave function $\psi$ into different parts and store in different processes.
 
 $d\psi = \psi(t+dt) - \psi = dt \times (H \psi)$
 
 We know Hamiltonian $H$ as a matrix may have component : $H(m,n)\neq 0$ , and element $m,n$ belong to different process
 
-Hamiltonian matrix $H$ is shared in different processes.
+wave function $\psi$ is shared in different processes.
 
 For process $p_n$, it has array of $\psi$ from index $n_{1} \sim n_{N}$ , if we have $H(n_{j},m)$ where $n_{j} \in [n_{1} , n_{N}]$ but $m \not \in [n_{1} , n_{N}]$ .
 
@@ -683,7 +619,6 @@ int full_system::construct_recvbuffer_index(){
     }
     return total_recv_count;
 }
-
 ```
 
 Here icol_copy is column index for nonzero element in Hamiltonian reside in given process.
@@ -714,7 +649,6 @@ use MPI_Alltoall and MPI_Alltoallv
     recv_y= new double [to_recv_buffer_len];
     send_x = new double[to_send_buffer_len];
     send_y= new double [to_send_buffer_len];
-
 ```
 
 This code extend $x$ (real part of wave function) , $y$ (imaginary part of wave function)  array to reside extra M elements. 
@@ -789,5 +723,3 @@ void monomer::SUR_onestep_MPI(){
 See before we do  $H \times \psi$ we have  : **update_dx()**  , **update_dy()** .
 
 These functions are for upodating elements of $\psi(m)$ for $H(n,m) \neq 0$  if $m$ is not in local array of wave function $\psi$ .
-
-

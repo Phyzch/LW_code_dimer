@@ -188,14 +188,14 @@ void monomer:: Scatter_xd_yd(){
 }
 
 void full_system::gather_x_y(double * x_all, double * y_all){
-    // gather x,y to store the x,y state
+    // gather real_part_wave_func,imag_part_wave_func to store the real_part_wave_func,imag_part_wave_func state
     // you have to allocate x_all, y_all outside this function
-    MPI_Gatherv(&x[0],matsize,MPI_DOUBLE,&x_all[0],matsize_each_process,matsize_offset_each_process,MPI_DOUBLE,0,MPI_COMM_WORLD);
-    MPI_Gatherv(&y[0],matsize,MPI_DOUBLE,&y_all[0],matsize_each_process,matsize_offset_each_process,MPI_DOUBLE,0,MPI_COMM_WORLD);
+    MPI_Gatherv(&real_part_wave_func[0], matsize, MPI_DOUBLE, &x_all[0], matsize_each_process, matsize_offset_each_process, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Gatherv(&imag_part_wave_func[0], matsize, MPI_DOUBLE, &y_all[0], matsize_each_process, matsize_offset_each_process, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 }
 
 void full_system::scatter_x_y(double * x_all, double * y_all){
-    // scatter x_all, y_all to x,y.
+    // scatter x_all, y_all to real_part_wave_func,imag_part_wave_func.
     // call this function when we load_wave_function from file.
     double * x_pass, *y_pass;
     int i;
@@ -204,8 +204,8 @@ void full_system::scatter_x_y(double * x_all, double * y_all){
     MPI_Scatterv(&x_all[0],matsize_each_process,matsize_offset_each_process,MPI_DOUBLE,&x_pass[0],matsize,MPI_DOUBLE,0,MPI_COMM_WORLD);
     MPI_Scatterv(&y_all[0],matsize_each_process,matsize_offset_each_process,MPI_DOUBLE,&y_pass[0],matsize,MPI_DOUBLE,0,MPI_COMM_WORLD);
     for(i=0;i<matsize;i++){
-        x.push_back(x_pass[i]);
-        y.push_back(y_pass[i]);
+        real_part_wave_func.push_back(x_pass[i]);
+        imag_part_wave_func.push_back(y_pass[i]);
     }
     delete [] x_pass;
     delete [] y_pass;

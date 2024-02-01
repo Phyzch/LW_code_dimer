@@ -1,0 +1,17 @@
+for using intel/oneAPI package
+. /opt/intel/mkl/bin/mklvars.sh intel64
+
+https://www.open-mpi.org/faq/?category=debugging#parallel-debuggers
+
+mpirun -np 2 xterm -e gdb (my_mpi_application)
+
+cmake  -DCMAKE_BUILD_TYPE=Debug  (location of CMakelist.txt) 
+cmake  -DCMAKE_BUILD_TYPE=Release (location of CMakelist.txt)
+
+2023.07.09 : 
+recently , SCS cluster has automatically load rocks-openmpi as default mpi.  IF we load another mpi on top of that, this could cause problem for running the program.
+
+Also, I update FindMKL.cmake file found from :
+https://github.com/openmeeg/findmkl_cmake/blob/master/cmake/FindMKL.cmake
+
+Previous version somehow report error on clusters

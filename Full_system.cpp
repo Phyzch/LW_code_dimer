@@ -15,15 +15,17 @@ full_system::full_system(string path1 , vector<vector<int>> & initial_state_quan
     monomer_number = 2;
     d.monomer_number = monomer_number;
 
-	s.read_MPI(input, output, log);
-	d.read_MPI(input, output, s.exciton_state_num, path);
-    d.construct_initial_state_MPI( initial_state_quantum_number);
+	s.read_MPI(input, output, log);     // read variables about exciton state
 
-    compute_monomer_vib_state_basis_set_size_MPI();
+	d.read_MPI(input, output, s.exciton_state_num, path); // read variables for monomer
+
+    d.construct_initial_state_MPI( initial_state_quantum_number); // record the quantum number and energy of initial state.
+
+    compute_monomer_vib_state_basis_set_size_MPI(); // construct the basis set for Hamiltonian.
 
     d.construct_monomer_Hamiltonian_MPI(input, output, log, monomer1_vib_state_energy_all_pc, monomer2_vib_state_energy_all_pc,
                                         monomer_qn_list0,
-                                        monomer_qn_list1);
+                                        monomer_qn_list1);  // construct diagonal and off-diagonal Hamiltonian of monomers.
 
     d.monomer1_vib_state_energy_all_pc = monomer1_vib_state_energy_all_pc;
     d.monomer2_vib_state_energy_all_pc = monomer2_vib_state_energy_all_pc;
@@ -116,7 +118,7 @@ void full_system::Quantum_dynamics_evolution(double & state_energy_for_record, v
 
             // ---------- code for computing survival probability --------
             if(my_id == initial_dimer_state_pc_id){
-                survival_prob = pow(x[initial_dimer_state_index],2) + pow(y[initial_dimer_state_index] , 2) ;
+                survival_prob = pow(real_part_wave_func[initial_dimer_state_index], 2) + pow(imag_part_wave_func[initial_dimer_state_index] , 2) ;
             }
             MPI_Bcast(&survival_prob,1, MPI_DOUBLE, initial_dimer_state_pc_id, MPI_COMM_WORLD);
             // record survival probability
@@ -126,7 +128,7 @@ void full_system::Quantum_dynamics_evolution(double & state_energy_for_record, v
             // --------------- code for computing survival probability in one potential energy surface
             electronic_state_survival_prob = 0;
             for(i=0;i<matsize;i++){
-                electronic_state_survival_prob = electronic_state_survival_prob + (pow(x[i], 2) + pow(y[i], 2)) * electronic_state_label_array[i];
+                electronic_state_survival_prob = electronic_state_survival_prob + (pow(real_part_wave_func[i], 2) + pow(imag_part_wave_func[i], 2)) * electronic_state_label_array[i];
             }
             MPI_Allreduce(&electronic_state_survival_prob, &electronic_survival_prob_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
             electronic_state_survival_probability_list.push_back(electronic_survival_prob_sum);
@@ -138,8 +140,8 @@ void full_system::Quantum_dynamics_evolution(double & state_energy_for_record, v
             monomer1_vib_energy = 0;
             monomer2_vib_energy = 0;
             for(i = 0;i < matsize; i++){
-                monomer1_vib_energy_each_pc = monomer1_vib_energy_each_pc + ( pow(x[i],2) + pow(y[i], 2)) * monomer1_vib_state_energy_all_pc[ vibrational_state_index_list[0][i] ];
-                monomer2_vib_energy_each_pc = monomer2_vib_energy_each_pc + ( pow(x[i],2) + pow(y[i], 2)) * monomer2_vib_state_energy_all_pc[ vibrational_state_index_list[1][i] ];
+                monomer1_vib_energy_each_pc = monomer1_vib_energy_each_pc + (pow(real_part_wave_func[i], 2) + pow(imag_part_wave_func[i], 2)) * monomer1_vib_state_energy_all_pc[ vibrational_state_index_list[0][i] ];
+                monomer2_vib_energy_each_pc = monomer2_vib_energy_each_pc + (pow(real_part_wave_func[i], 2) + pow(imag_part_wave_func[i], 2)) * monomer2_vib_state_energy_all_pc[ vibrational_state_index_list[1][i] ];
             }
             MPI_Allreduce(&monomer1_vib_energy_each_pc, &monomer1_vib_energy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
             MPI_Allreduce(&monomer2_vib_energy_each_pc, &monomer2_vib_energy, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);

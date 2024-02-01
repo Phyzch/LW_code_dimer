@@ -136,6 +136,7 @@ void monomer::read_MPI(ifstream & input, ofstream & output, int electronic_state
 void monomer:: construct_monomer_Hamiltonian_MPI(ifstream & input, ofstream & output, ofstream & log, vector<double> & dmat_diagonal_global0, vector<double> & dmat_diagonal_global1, vector<vector<int>> & vmode0, vector<vector<int>> & vmode1) {
     int m, i;
 
+    // construct row, column & mat index and also dv (quantum number list)
     construct_dv_dirow_dicol_dmatrix_MPI(log, dmat_diagonal_global0, dmat_diagonal_global1, vmode0, vmode1);
 
     // compute initial vibrational state in each monomer
@@ -336,6 +337,7 @@ void Broadcast_dmat_vmode(int stlnum, vector<double> & dmat0,  vector<double> & 
 void monomer::compute_monomer_offdiag_part_MPI(ofstream & log, vector<double> & dmat0, vector<double> & dmat1, vector<vector<int>> & vmode0, vector<vector<int>> & vmode1){
     int i,j,m,k;
     int begin_index;
+    int end_index;
     int ntot;
     double value, lij;
     vector<vector <int>> * vmode_ptr;
@@ -354,8 +356,9 @@ void monomer::compute_monomer_offdiag_part_MPI(ofstream & log, vector<double> & 
             dmat_ptr= &(dmat1);
         }
         begin_index= total_monomer_mat_size[m] / num_proc * my_id;
+        end_index = begin_index + monomer_matsize[m];
         // compute off diagonal matrix element, using monomer1_vib_state_energy_all_pc, monomer2_vib_state_energy_all_pc.
-        for(i=begin_index;i< begin_index + monomer_matsize[m]; i++){  // for my_id==0 , O(monomer_matsize * monomer_matsize/ proc_num)
+        for(i = begin_index;i < end_index; i++){  // for my_id==0 , O(monomer_matsize * monomer_matsize/ proc_num)
             for(j=0; j < total_monomer_mat_size[m]; j++){ // j is different from serial program. Now we record both symmetric Hamiltonian element
                 if (i==j) continue;
                 ntot=0;

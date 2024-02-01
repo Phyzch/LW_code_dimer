@@ -33,19 +33,23 @@ void read_state_quantum_number_list(string file_path, vector<vector<vector<int>>
 
 int main(int argc,char * argv []) {
     srand(time(0));
+
+    // the location of the input file
     string home_folder_path = "/home/phyzch/CLionProjects/LW_code_dimer/"; // change this folder to your home folder
-    string path = home_folder_path + "input_example/"; // example input file.
+    string path = home_folder_path + "input_example/input_file/"; // example input file.
 
 
     string s;
     string s1;
-    int i,m,j;
+
     int state_num;
     int mode_num;
+    int i,m,j;
+
 
     // MPI Command
     MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD,&num_proc);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_proc);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_id);
 
     vector<vector<int>> state_quantum_number;
@@ -85,12 +89,8 @@ int main(int argc,char * argv []) {
 
             vector<vector<double>> vibrational_energy_list;
 
+            // construct the full system instance, and construct Hamiltonian.
             full_system dimer_model(path , state_quantum_number);  // set parameter and construct Hamiltonian.
-
-            // compute Nloc for each state.
-//            dimer_model.compute_local_density_of_state(coupling_state_index_list, coupling_state_qn_list,
-//                                                       coupling_state_strength_list, coupling_state_energy_diff_list, effective_coupling_number_list);
-
 
             dimer_model.Quantum_dynamics_evolution(state_energy, time_list, survival_prob_list,
                                                    electronic_survival_prob_list,
